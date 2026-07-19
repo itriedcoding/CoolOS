@@ -53,12 +53,15 @@ jobs:
           echo "deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware" >> /etc/apt/sources.list
           echo "deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list
           
-          echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
-          locale-gen
-          update-locale LANG=en_US.UTF-8
           ln -sf /usr/share/zoneinfo/UTC /etc/localtime
           
           apt-get update
+          apt-get install -y locales
+          
+          echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+          locale-gen
+          update-locale LANG=en_US.UTF-8
+          
           apt-get install -y \
             linux-image-amd64 \
             systemd systemd-sysv dbus udev kmod procps locales sudo \
@@ -74,8 +77,7 @@ jobs:
             pulseaudio pavucontrol \
             build-essential git python3 curl wget vim-tiny nano \
             htop tmux tree zip unzip p7zip-full \
-            live-boot live-config live-config-systemd \
-            live-config-systemd || true
+            live-boot live-config live-config-systemd
           
           useradd -m -s /bin/bash -G sudo,audio,video,plugdev,netdev coolos || true
           echo "coolos:coolors" | chpasswd
