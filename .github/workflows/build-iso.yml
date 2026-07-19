@@ -65,15 +65,15 @@ jobs:
             openbox tint2 rofi pcmanfm thunar lxterminal \
             lightdm lightdm-gtk-greeter picom dunst nitrogen lxappearance \
             arc-theme papirus-icon-theme \
-            fonts-noto fonts-noto-color-emoji fonts-firacode fonts-dejavu fonts-liberation \
+            fonts-noto fonts-firacode fonts-dejavu fonts-liberation \
             xorg xserver-xorg xinit x11-xserver-utils xterm dbus-x11 \
-            firefox-esr libreoffice-writer libreoffice-calc libreoffice-impress \
-            vlc mpv gimp inkscape geany evince galculator file-roller \
+            firefox-esr \
+            vlc evince galculator file-roller \
             network-manager network-manager-gnome \
-            gnome-system-monitor baobab ncdu ufw \
+            baobab ncdu ufw \
             pulseaudio pavucontrol \
-            build-essential git python3 curl wget vim-tiny nano \
-            htop tmux tree zip unzip p7zip-full \
+            python3 curl wget vim-tiny nano \
+            htop tmux tree zip unzip \
             live-boot live-config live-config-systemd
           useradd -m -s /bin/bash -G sudo,audio,video,plugdev,netdev coolos || true
           echo "coolos:coolors" | chpasswd
