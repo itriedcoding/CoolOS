@@ -45,6 +45,7 @@ jobs:
           --binary-images iso-hybrid \
           --debian-installer none \
           --memtest none \
+          --mirror-bootstrap http://deb.debian.org/debian/ \
           --iso-application "CoolOS" \
           --iso-publisher "CoolOS" \
           --iso-volume "CoolOS 1.2.0" \
