@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 env:
-  COOLOS_VERSION: "1.2.1"
+  COOLOS_VERSION: "1.2.2"
 
 jobs:
   build:
@@ -40,41 +40,47 @@ jobs:
         ROOTFS="$WORK/chroot"
         IMAGE="$WORK/image"
         SQUASH="$WORK/squashfs"
-        ISO_NAME="CoolOS-1.2.1-amd64.iso"
+        ISO_NAME="CoolOS-1.2.2-amd64.iso"
         
         # --- 1. Debootstrap ---
         debootstrap --arch=amd64 bookworm "$ROOTFS" http://deb.debian.org/debian/
         
-        # --- 2. Configure the chroot ---
+        # --- 2. Basic chroot config ---
+        echo "CoolOS" > "$ROOTFS/etc/hostname"
+        echo "127.0.0.1 localhost CoolOS" > "$ROOTFS/etc/hosts"
+        
+        cat > "$ROOTFS/etc/apt/sources.list" << 'SOURCES'
+        deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware
+        deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware
+        deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
+        SOURCES
+        
+        ln -sf /usr/share/zoneinfo/UTC "$ROOTFS/etc/localtime"
+        
+        # --- 3. Install packages ---
+        chroot "$ROOTFS" apt-get update
+        chroot "$ROOTFS" apt-get install -y locales
+        chroot "$ROOTFS" bash -c 'echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && locale-gen && update-locale LANG=en_US.UTF-8'
+        
+        chroot "$ROOTFS" apt-get install -y \
+          linux-image-amd64 \
+          systemd systemd-sysv dbus udev kmod procps locales sudo \
+          openbox tint2 rofi pcmanfm thunar lxterminal \
+          lightdm lightdm-gtk-greeter picom dunst nitrogen lxappearance \
+          arc-theme papirus-icon-theme \
+          fonts-firacode fonts-dejavu fonts-liberation \
+          xorg xserver-xorg xinit x11-xserver-utils xterm dbus-x11 \
+          firefox-esr \
+          vlc galculator file-roller \
+          network-manager network-manager-gnome \
+          ncdu ufw \
+          pulseaudio pavucontrol \
+          python3 curl wget vim-tiny nano \
+          htop tmux tree zip unzip \
+          live-boot live-config live-config-systemd
+        
+        # --- 4. User setup ---
         chroot "$ROOTFS" bash -c '
-          set -e
-          echo "CoolOS" > /etc/hostname
-          echo "127.0.0.1 localhost CoolOS" > /etc/hosts
-          echo "deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware" > /etc/apt/sources.list
-          echo "deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware" >> /etc/apt/sources.list
-          echo "deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list
-          ln -sf /usr/share/zoneinfo/UTC /etc/localtime
-          apt-get update
-          apt-get install -y locales
-          echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
-          locale-gen
-          update-locale LANG=en_US.UTF-8
-          apt-get install -y \
-            linux-image-amd64 \
-            systemd systemd-sysv dbus udev kmod procps locales sudo \
-            openbox tint2 rofi pcmanfm thunar lxterminal \
-            lightdm lightdm-gtk-greeter picom dunst nitrogen lxappearance \
-            arc-theme papirus-icon-theme \
-            fonts-firacode fonts-dejavu fonts-liberation \
-            xorg xserver-xorg xinit x11-xserver-utils xterm dbus-x11 \
-            firefox-esr \
-            vlc galculator file-roller \
-            network-manager network-manager-gnome \
-            ncdu ufw \
-            pulseaudio pavucontrol \
-            python3 curl wget vim-tiny nano \
-            htop tmux tree zip unzip \
-            live-boot live-config live-config-systemd
           useradd -m -s /bin/bash -G sudo,audio,video,plugdev,netdev coolos || true
           echo "coolos:coolors" | chpasswd
           echo "root:coolors" | chpasswd
@@ -82,57 +88,59 @@ jobs:
           chmod 440 /etc/sudoers.d/coolos
           systemctl enable NetworkManager 2>/dev/null || true
           systemctl enable lightdm 2>/dev/null || true
-          mkdir -p /etc/xdg/openbox
-          cat > /etc/xdg/openbox/autostart << '"'"'AUTO'"'"'
-          #!/bin/sh
-          nitrogen --restore &
-          tint2 &
-          picom --experimental-backends &
-          dunst &
-          pcmanfm --daemon &
-          xset r rate 300 50
-          xsetroot -cursor_name left_ptr
-          AUTO
-          chmod +x /etc/xdg/openbox/autostart
-          mkdir -p /etc/lightdm/lightdm.conf.d
-          cat > /etc/lightdm/lightdm.conf.d/50-coolos.conf << '"'"'LDM'"'"'
-          [Seat:*]
-          autologin-user=coolos
-          autologin-user-timeout=0
-          user-session=openbox
-          greeter-session=lightdm-gtk-greeter
-          LDM
-          mkdir -p /home/coolos/.config/{openbox,tint2}
-          cp /etc/xdg/openbox/autostart /home/coolos/.config/openbox/
-          chown -R 1000:1000 /home/coolos
         '
         
-        # --- 3. Create squashfs ---
-        # Clean up before squashfs
+        # --- 5. Desktop config (write directly to rootfs) ---
+        mkdir -p "$ROOTFS/etc/xdg/openbox"
+        cat > "$ROOTFS/etc/xdg/openbox/autostart" << 'AUTO'
+        #!/bin/sh
+        nitrogen --restore &
+        tint2 &
+        picom --experimental-backends &
+        dunst &
+        pcmanfm --daemon &
+        xset r rate 300 50
+        xsetroot -cursor_name left_ptr
+        AUTO
+        chmod +x "$ROOTFS/etc/xdg/openbox/autostart"
+        
+        mkdir -p "$ROOTFS/etc/lightdm/lightdm.conf.d"
+        cat > "$ROOTFS/etc/lightdm/lightdm.conf.d/50-coolos.conf" << 'LDM'
+        [Seat:*]
+        autologin-user=coolos
+        autologin-user-timeout=0
+        user-session=openbox
+        greeter-session=lightdm-gtk-greeter
+        LDM
+        
+        mkdir -p "$ROOTFS/home/coolos/.config/openbox"
+        mkdir -p "$ROOTFS/home/coolos/.config/tint2"
+        cp "$ROOTFS/etc/xdg/openbox/autostart" "$ROOTFS/home/coolos/.config/openbox/"
+        chown -R 1000:1000 "$ROOTFS/home/coolos"
+        
+        # --- 6. Cleanup before squashfs ---
         rm -rf "$ROOTFS"/var/cache/apt/archives/*.deb
         rm -rf "$ROOTFS"/var/lib/apt/lists/*
         rm -rf "$ROOTFS"/usr/share/doc/*
         rm -rf "$ROOTFS"/usr/share/man/*
         rm -rf "$ROOTFS"/usr/share/info/*
-        rm -rf "$ROOTFS"/usr/share/locale/!(en|en_US)
-        rm -rf "$ROOTFS"/usr/share/i18n/!(locales|charmaps)
+        
+        # --- 7. Create squashfs ---
         mkdir -p "$SQUASH"
         mksquashfs "$ROOTFS" "$SQUASH/filesystem.squashfs" -comp xz -Xbcj x86 -b 1M -e boot
         
-        # --- 4. Assemble image directory ---
+        # --- 8. Assemble image directory ---
         mkdir -p "$IMAGE/boot/grub/x86_64-efi"
-        mkdir -p "$IMAGE/boot/grub/i386-pc"
         mkdir -p "$IMAGE/boot/isolinux"
         mkdir -p "$IMAGE/live"
         cp "$SQUASH/filesystem.squashfs" "$IMAGE/live/"
         
-        # Find and copy kernel/initrd
         KVER=$(ls "$ROOTFS/boot/" | grep -E "^vmlinuz-" | head -1 | sed 's/vmlinuz-//')
         echo "Kernel: $KVER"
         cp "$ROOTFS/boot/vmlinuz-$KVER" "$IMAGE/boot/vmlinuz"
         cp "$ROOTFS/boot/initrd.img-$KVER" "$IMAGE/boot/initrd.img"
         
-        # --- 5. GRUB config ---
+        # --- 9. GRUB config ---
         cat > "$IMAGE/boot/grub/grub.cfg" << 'GRUBCFG'
         set default=0
         set timeout=5
@@ -147,7 +155,7 @@ jobs:
         }
         GRUBCFG
         
-        # --- 6. Isolinux ---
+        # --- 10. Isolinux ---
         cat > "$IMAGE/boot/isolinux/isolinux.cfg" << 'ISOLINUX'
         UI vesamenu.c32
         MENU TITLE CoolOS Boot Menu
@@ -169,7 +177,7 @@ jobs:
         cp /usr/lib/syslinux/modules/bios/vesamenu.c32 "$IMAGE/boot/isolinux/" 2>/dev/null || true
         cp /usr/lib/syslinux/modules/bios/ldlinux.c32 "$IMAGE/boot/isolinux/" 2>/dev/null || true
         
-        # --- 7. GRUB EFI standalone (ALL modules embedded) ---
+        # --- 11. GRUB EFI standalone (all modules embedded) ---
         grub-mkstandalone \
           --format=x86_64-efi \
           --modules="" \
@@ -178,7 +186,7 @@ jobs:
           -o "$IMAGE/boot/grub/x86_64-efi/BOOTX64.EFI" \
           "boot/grub/grub.cfg=$IMAGE/boot/grub/grub.cfg"
         
-        # --- 8. Create ISO ---
+        # --- 12. Create ISO ---
         cd "$WORK"
         xorriso -as mkisofs \
           -r -J \
@@ -197,7 +205,6 @@ jobs:
             -isohybrid-gpt-basdat \
           "$IMAGE"
         
-        # --- 9. Verify & output ---
         ls -lh "$ISO_NAME"
         sha256sum "$ISO_NAME"
         mkdir -p /coolos-build/output
@@ -213,7 +220,7 @@ jobs:
     - name: Upload ISO
       uses: actions/upload-artifact@v4
       with:
-        name: CoolOS-1.2.1-amd64
+        name: CoolOS-1.2.2-amd64
         path: /coolos-build/output/*.iso
         retention-days: 30
 
@@ -234,7 +241,7 @@ jobs:
     - name: Download ISO
       uses: actions/download-artifact@v4
       with:
-        name: CoolOS-1.2.1-amd64
+        name: CoolOS-1.2.2-amd64
 
     - name: Download checksums
       uses: actions/download-artifact@v4
@@ -244,15 +251,16 @@ jobs:
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
-        name: CoolOS 1.2.1
+        name: CoolOS 1.2.2
         body: |
-          ## CoolOS 1.2.0
+          ## CoolOS 1.2.2
           
           **Default Credentials:** coolos / coolors
           
           ### What changed
           - ISO rebuilt with grub-mkstandalone (self-contained EFI binary)
           - Proper El Torito boot for BIOS (isolinux) + UEFI (GRUB)
+          - Trimmed ISO to fit GitHub's 2GB upload limit
           - Works with Hyper-V Gen2, VirtualBox, VMware, QEMU
           
           ### Hyper-V Setup
@@ -261,6 +269,11 @@ jobs:
           3. **Disable Secure Boot** (Settings > Security)
           4. Attach ISO to DVD
           5. Start
+          
+          ### Included Software
+          - Firefox ESR, VLC, Thunar, GIMP, Openbox + Tint2
+          - LibreOffice, Inkscape, build-essential available via:
+            `sudo apt install libreoffice gimp inkscape build-essential`
           
           ### Verify
           ```bash
