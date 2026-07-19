@@ -173,7 +173,7 @@ umount $CHROOT/sys 2>/dev/null || true
 
 # === SquashFS ===
 echo "[*] Creating SquashFS image..."
-mksquashfs $CHROOT $ISO/live/filesystem.squashfs -comp xz -b 1M -Xdictsize 1M -noappend -e boot
+mksquashfs $CHROOT $ISO/live/filesystem.squashfs -comp xz -b 1M -noappend -e boot
 
 # === Kernel ===
 echo "[*] Copying kernel..."
