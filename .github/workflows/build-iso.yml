@@ -265,9 +265,7 @@ jobs:
           -boot-load-size 4 \
           -boot-info-table \
           -eltorito-alt-boot \
-          -e boot/grub/x86_64-efi/core.img \
-          --grub2-mbr $ISO/isolinux/isohdpfx.bin \
-          --grub2-boot-info \
+          -e BOOT/GRUBX64.EFI \
           -no-emul-boot \
           -isohybrid-gpt-basdat \
           -V "CoolOS" \

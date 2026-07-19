@@ -269,16 +269,11 @@ xorriso -as mkisofs \
     -boot-load-size 4 \
     -boot-info-table \
     -eltorito-alt-boot \
-    -e boot/grub/x86_64-efi/core.img \
-    --grub2-mbr $ISO/isolinux/isohdpfx.bin \
-    --grub2-boot-info \
+    -e BOOT/GRUBX64.EFI \
     -no-emul-boot \
     -isohybrid-gpt-basdat \
     -V "CoolOS" \
     -R -J \
-    --efi-boot \
-    --efi-boot-partition \
-    --efi-boot-image boot/grub/x86_64-efi/core.img \
     $ISO
 
 # Checksums
