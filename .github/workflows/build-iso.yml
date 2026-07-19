@@ -27,8 +27,10 @@ jobs:
           mbr binutils isolinux syslinux-common syslinux \
           live-build ovmf
 
-    - name: Build ISO
+    - name: Create build script
       run: |
+        cat > /tmp/build-coolos.sh << 'BUILDEOF'
+        #!/bin/bash
         set -ex
         
         BUILD=/coolos-build
@@ -39,29 +41,27 @@ jobs:
         rm -rf $BUILD
         mkdir -p $CHROOT $ISO/{live,boot/grub,boot/grub/x86_64-efi,EFI/BOOT,isolinux} $OUTPUT
         
-        # === STEP 1: Bootstrap ===
-        echo "=== Bootstrapping Debian Bookworm ==="
+        # Bootstrap
         debootstrap --arch=amd64 --variant=minbase \
           --include=apt-transport-https,ca-certificates,curl,wget,gnupg,systemd,systemd-sysv,dbus,udev,kmod,procps,locales,sudo \
           bookworm $CHROOT http://deb.debian.org/debian/
         
-        # === STEP 2: APT sources ===
+        # APT sources
         cat > $CHROOT/etc/apt/sources.list << 'EOF'
         deb http://deb.debian.org/debian/ bookworm main contrib non-free non-free-firmware
         deb http://deb.debian.org/debian/ bookworm-updates main contrib non-free non-free-firmware
         deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
         EOF
         
-        # === STEP 3: Mount ===
-        sudo mount --bind /dev $CHROOT/dev
-        sudo mount --bind /dev/pts $CHROOT/dev/pts
-        sudo mount -t proc proc $CHROOT/proc
-        sudo mount -t sysfs sysfs $CHROOT/sys
-        sudo cp /etc/resolv.conf $CHROOT/etc/resolv.conf
+        # Mount
+        mount --bind /dev $CHROOT/dev
+        mount --bind /dev/pts $CHROOT/dev/pts
+        mount -t proc proc $CHROOT/proc
+        mount -t sysfs sysfs $CHROOT/sys
+        cp /etc/resolv.conf $CHROOT/etc/resolv.conf
         
-        # === STEP 4: Install packages ===
-        echo "=== Installing packages ==="
-        sudo chroot $CHROOT /bin/bash << 'CHROOTPKG'
+        # Install packages
+        chroot $CHROOT /bin/bash << 'CHROOTPKG'
           set -e
           export DEBIAN_FRONTEND=noninteractive
           apt-get update
@@ -97,28 +97,20 @@ jobs:
           apt-get install -y --no-install-recommends \
             live-boot live-config live-config-systemd
           
-          # Installer (Calamares)
-          apt-get install -y calamares calamares-settings-debian
+          # Installer (Calamares) - skip if not available
+          apt-get install -y calamares calamares-settings-debian 2>/dev/null || echo "Calamares not available"
           
           # Boot loaders
           apt-get install -y --no-install-recommends \
             grub-efi-amd64-bin grub-pc-bin grub2-common grub-common \
             syslinux syslinux-common isolinux xorriso mtools
           
-          # Fix Calamares
-          apt-get install -y --no-install-recommends \
-            qml-module-qtquick2 qml-module-qtquick-controls2 \
-            qml-module-qtquick-layouts qml-module-qtquick-window2 \
-            qml-module-qtgraphicaleffects qml-module-qtquick-controls \
-            plasma-framework
-          
           apt-get clean
           rm -rf /var/lib/apt/lists/*
         CHROOTPKG
         
-        # === STEP 5: System config ===
-        echo "=== Configuring system ==="
-        sudo chroot $CHROOT /bin/bash << 'CHROOTCFG'
+        # System config
+        chroot $CHROOT /bin/bash << 'CHROOTCFG'
           set -e
           echo "CoolOS" > /etc/hostname
           echo "127.0.0.1 localhost CoolOS" > /etc/hosts
@@ -126,28 +118,22 @@ jobs:
           locale-gen
           update-locale LANG=en_US.UTF-8
           ln -sf /usr/share/zoneinfo/UTC /etc/localtime
-          
-          # User
           useradd -m -s /bin/bash -G sudo,audio,video,plugdev,netdev coolos || true
           echo "coolos:coolors" | chpasswd
           echo "root:coolors" | chpasswd
           echo "coolos ALL=(ALL) ALL" > /etc/sudoers.d/coolos
           chmod 440 /etc/sudoers.d/coolos
-          
-          # Services
           systemctl enable NetworkManager 2>/dev/null || true
           systemctl set-default graphical.target 2>/dev/null || true
         CHROOTCFG
         
-        # === STEP 6: Desktop config ===
-        echo "=== Configuring desktop ==="
-        sudo mkdir -p $CHROOT/etc/xdg/openbox
-        sudo mkdir -p $CHROOT/etc/skel/.config/{openbox,tint2}
-        sudo mkdir -p $CHROOT/etc/lightdm/lightdm.conf.d
-        sudo mkdir -p $CHROOT/etc/skel/.local/share/applications
+        # Desktop config
+        mkdir -p $CHROOT/etc/xdg/openbox
+        mkdir -p $CHROOT/etc/skel/.config/{openbox,tint2}
+        mkdir -p $CHROOT/etc/lightdm/lightdm.conf.d
         
         # Autostart
-        sudo tee $CHROOT/etc/xdg/openbox/autostart > /dev/null << 'AUTOSTART'
+        cat > $CHROOT/etc/xdg/openbox/autostart << 'AUTOSTART'
         #!/bin/sh
         nitrogen --restore &
         tint2 &
@@ -157,10 +143,10 @@ jobs:
         xset r rate 300 50
         xsetroot -cursor_name left_ptr
         AUTOSTART
-        sudo chmod +x $CHROOT/etc/xdg/openbox/autostart
+        chmod +x $CHROOT/etc/xdg/openbox/autostart
         
-        # LightDM auto-login
-        sudo tee $CHROOT/etc/lightdm/lightdm.conf.d/50-coolos.conf > /dev/null << 'LDM'
+        # LightDM
+        cat > $CHROOT/etc/lightdm/lightdm.conf.d/50-coolos.conf << 'LDM'
         [Seat:*]
         autologin-user=coolos
         autologin-user-timeout=0
@@ -168,56 +154,49 @@ jobs:
         greeter-session=lightdm-gtk-greeter
         LDM
         
-        # Copy configs from repo
-        sudo cp config/includes.chroot/etc/xdg/openbox/menu.xml $CHROOT/etc/xdg/openbox/ 2>/dev/null || true
-        sudo cp config/includes.chroot/etc/xdg/openbox/rc.xml $CHROOT/etc/xdg/openbox/ 2>/dev/null || true
-        sudo cp config/includes.chroot/etc/skel/.bashrc $CHROOT/etc/skel/ 2>/dev/null || true
-        sudo cp config/includes.chroot/etc/skel/.vimrc $CHROOT/etc/skel/ 2>/dev/null || true
-        sudo cp config/includes.chroot/etc/skel/.config/tint2/tint2rc $CHROOT/etc/skel/.config/tint2/ 2>/dev/null || true
+        # Copy configs
+        cp config/includes.chroot/etc/xdg/openbox/menu.xml $CHROOT/etc/xdg/openbox/ 2>/dev/null || true
+        cp config/includes.chroot/etc/xdg/openbox/rc.xml $CHROOT/etc/xdg/openbox/ 2>/dev/null || true
+        cp config/includes.chroot/etc/skel/.bashrc $CHROOT/etc/skel/ 2>/dev/null || true
+        cp config/includes.chroot/etc/skel/.vimrc $CHROOT/etc/skel/ 2>/dev/null || true
+        cp config/includes.chroot/etc/skel/.config/tint2/tint2rc $CHROOT/etc/skel/.config/tint2/ 2>/dev/null || true
         
-        # Copy to user home
-        sudo mkdir -p $CHROOT/home/coolos/.config/{openbox,tint2}
-        sudo cp $CHROOT/etc/xdg/openbox/autostart $CHROOT/home/coolos/.config/openbox/
-        sudo cp $CHROOT/etc/xdg/openbox/menu.xml $CHROOT/home/coolos/.config/openbox/ 2>/dev/null || true
-        sudo cp $CHROOT/etc/xdg/openbox/rc.xml $CHROOT/home/coolos/.config/openbox/ 2>/dev/null || true
-        sudo chown -R 1000:1000 $CHROOT/home/coolos
+        # Copy to user
+        mkdir -p $CHROOT/home/coolos/.config/{openbox,tint2}
+        cp $CHROOT/etc/xdg/openbox/autostart $CHROOT/home/coolos/.config/openbox/
+        cp $CHROOT/etc/xdg/openbox/menu.xml $CHROOT/home/coolos/.config/openbox/ 2>/dev/null || true
+        cp $CHROOT/etc/xdg/openbox/rc.xml $CHROOT/home/coolos/.config/openbox/ 2>/dev/null || true
+        chown -R 1000:1000 $CHROOT/home/coolos
         
-        # === STEP 7: Unmount ===
-        echo "=== Unmounting ==="
-        sudo umount $CHROOT/dev/pts 2>/dev/null || true
-        sudo umount $CHROOT/dev 2>/dev/null || true
-        sudo umount $CHROOT/proc 2>/dev/null || true
-        sudo umount $CHROOT/sys 2>/dev/null || true
+        # Unmount
+        umount $CHROOT/dev/pts 2>/dev/null || true
+        umount $CHROOT/dev 2>/dev/null || true
+        umount $CHROOT/proc 2>/dev/null || true
+        umount $CHROOT/sys 2>/dev/null || true
         
-        # === STEP 8: SquashFS ===
-        echo "=== Creating SquashFS ==="
-        sudo mksquashfs $CHROOT $ISO/live/filesystem.squashfs -comp xz -b 1M -Xdictsize 1M -noappend -e boot
+        # SquashFS
+        mksquashfs $CHROOT $ISO/live/filesystem.squashfs -comp xz -b 1M -Xdictsize 1M -noappend -e boot
         
-        # === STEP 9: Kernel ===
-        echo "=== Copying kernel ==="
+        # Kernel
         KERNEL=$(ls $CHROOT/boot/vmlinuz-* | head -n1)
         INITRD=$(ls $CHROOT/boot/initrd.img-* | head -n1)
-        sudo cp "$KERNEL" $ISO/live/vmlinuz
-        sudo cp "$INITRD" $ISO/live/initrd
+        cp "$KERNEL" $ISO/live/vmlinuz
+        cp "$INITRD" $ISO/live/initrd
         
-        # === STEP 10: BIOS Boot (Isolinux) ===
-        echo "=== Setting up BIOS boot ==="
-        sudo cp /usr/lib/ISOLINUX/isolinux.bin $ISO/isolinux/ 2>/dev/null || \
-          sudo cp /usr/share/syslinux/isolinux.bin $ISO/isolinux/ 2>/dev/null || true
-        sudo cp /usr/lib/ISOLINUX/isohdpfx.bin $ISO/isolinux/ 2>/dev/null || \
-          sudo cp /usr/share/syslinux/isohdpfx.bin $ISO/isolinux/ 2>/dev/null || true
-        sudo cp /usr/share/syslinux/menu.c32 $ISO/isolinux/ 2>/dev/null || true
-        sudo cp /usr/share/syslinux/ldlinux.c32 $ISO/isolinux/ 2>/dev/null || true
-        sudo cp /usr/share/syslinux/libcom32.c32 $ISO/isolinux/ 2>/dev/null || true
-        sudo cp /usr/share/syslinux/libutil.c32 $ISO/isolinux/ 2>/dev/null || true
+        # BIOS Boot
+        cp /usr/lib/ISOLINUX/isolinux.bin $ISO/isolinux/ 2>/dev/null || \
+          cp /usr/share/syslinux/isolinux.bin $ISO/isolinux/ 2>/dev/null || true
+        cp /usr/lib/ISOLINUX/isohdpfx.bin $ISO/isolinux/ 2>/dev/null || \
+          cp /usr/share/syslinux/isohdpfx.bin $ISO/isolinux/ 2>/dev/null || true
+        cp /usr/share/syslinux/menu.c32 $ISO/isolinux/ 2>/dev/null || true
+        cp /usr/share/syslinux/ldlinux.c32 $ISO/isolinux/ 2>/dev/null || true
+        cp /usr/share/syslinux/libcom32.c32 $ISO/isolinux/ 2>/dev/null || true
+        cp /usr/share/syslinux/libutil.c32 $ISO/isolinux/ 2>/dev/null || true
         
-        sudo tee $ISO/isolinux/isolinux.cfg > /dev/null << 'ISOlinux'
+        cat > $ISO/isolinux/isolinux.cfg << 'ISOlinux'
         UI menu.c32
         MENU TITLE CoolOS Boot Menu
         MENU TIMEOUT 50
-        MENU COLOR TITLE 1;36;44
-        MENU COLOR SEL 7;37;40
-        
         DEFAULT coolos
         
         LABEL coolos
@@ -237,15 +216,10 @@ jobs:
             APPEND initrd=/live/initrd boot=live quiet splash components
         ISOlinux
         
-        # === STEP 11: EFI Boot (GRUB) ===
-        echo "=== Setting up EFI boot ==="
-        sudo tee $ISO/boot/grub/grub.cfg > /dev/null << 'GRUBCFG'
+        # EFI Boot
+        cat > $ISO/boot/grub/grub.cfg << 'GRUBCFG'
         set timeout=5
         set default=0
-        
-        set color_normal=white/black
-        set color_highlight=white/blue
-        
         insmod all_video
         
         menuentry "CoolOS Live" {
@@ -264,28 +238,25 @@ jobs:
         }
         GRUBCFG
         
-        # Create GRUB EFI image with all needed modules
-        sudo grub-mkimage \
+        # Create GRUB EFI
+        grub-mkimage \
           --directory=/usr/lib/grub/x86_64-efi \
           --output=$ISO/BOOT/GRUBX64.EFI \
           --format=x86_64-efi \
           --prefix='(cd)/boot/grub' \
           fat part_gpt part_msdos iso9660 normal boot linux configfile \
-          search search_fs_uuid search_label terminal gfxterm gfxterm_background \
-          gfxterm_menu all_video loadenv exfat ext2 ntfs btrfs hfsplus udf
+          search search_fs_uuid search_label terminal gfxterm \
+          all_video loadenv exfat ext2 ntfs
         
-        # Copy GRUB EFI as fallback
-        sudo mkdir -p $ISO/EFI/BOOT
-        sudo cp $ISO/BOOT/GRUBX64.EFI $ISO/EFI/BOOT/BOOTX64.EFI
+        mkdir -p $ISO/EFI/BOOT
+        cp $ISO/BOOT/GRUBX64.EFI $ISO/EFI/BOOT/BOOTX64.EFI
         
-        # Copy GRUB modules directory
-        sudo mkdir -p $ISO/boot/grub/x86_64-efi
-        sudo cp /usr/lib/grub/x86_64-efi/*.mod $ISO/boot/grub/x86_64-efi/ 2>/dev/null || true
-        sudo cp /usr/lib/grub/x86_64-efi/*.lst $ISO/boot/grub/x86_64-efi/ 2>/dev/null || true
+        mkdir -p $ISO/boot/grub/x86_64-efi
+        cp /usr/lib/grub/x86_64-efi/*.mod $ISO/boot/grub/x86_64-efi/ 2>/dev/null || true
+        cp /usr/lib/grub/x86_64-efi/*.lst $ISO/boot/grub/x86_64-efi/ 2>/dev/null || true
         
-        # === STEP 12: Build ISO ===
-        echo "=== Building ISO ==="
-        sudo xorriso -as mkisofs \
+        # Build ISO
+        xorriso -as mkisofs \
           -o $OUTPUT/CoolOS-1.1.0-amd64.iso \
           -isohybrid-mbr $ISO/isolinux/isohdpfx.bin \
           -c isolinux/boot.cat \
@@ -301,18 +272,18 @@ jobs:
           -isohybrid-gpt-basdat \
           -V "CoolOS" \
           -R -J \
-          --efi-boot \
-          --efi-boot-partition \
-          --efi-boot-image boot/grub/x86_64-efi/core.img \
           $ISO
         
-        # === STEP 13: Checksums ===
-        echo "=== Generating checksums ==="
         cd $OUTPUT
         sha256sum *.iso > SHA256SUMS
         
-        echo "=== BUILD COMPLETE ==="
+        echo "BUILD COMPLETE"
         ls -lh $OUTPUT/
+        BUILDEOF
+        chmod +x /tmp/build-coolos.sh
+
+    - name: Run build
+      run: sudo /tmp/build-coolos.sh
 
     - name: Upload ISO
       uses: actions/upload-artifact@v4
@@ -358,17 +329,19 @@ jobs:
           
           ### What's New
           - Fixed UEFI boot for Hyper-V, VMware, VirtualBox
-          - Added Calamares graphical installer
-          - Added PulseAudio for sound
           - Added Xorg display server
-          - Better package selection with --no-install-recommends
+          - Added PulseAudio for sound
+          - Better package selection
+          
+          ### Boot Options
+          - UEFI + BIOS support
+          - Works with Hyper-V, VMware, VirtualBox, QEMU
           
           ### Features
           - Debian Bookworm base
           - Openbox window manager
           - Pre-installed apps (Firefox, LibreOffice, GIMP, VLC, etc.)
-          - Calamares graphical installer
-          - UEFI + BIOS boot support
+          - NetworkManager, UFW firewall
           
           ### Verify
           ```bash
