@@ -27,20 +27,21 @@ jobs:
           mbr binutils isolinux syslinux-common syslinux \
           cpio genisoimage live-build ovmf
 
-    - name: Build ISO with live-build
+    - name: Create build script
       run: |
+        cat > /tmp/build-coolos.sh << 'BUILDEOF'
+        #!/bin/bash
         set -ex
         
         BUILD=/coolos-build
         rm -rf $BUILD
         mkdir -p $BUILD && cd $BUILD
         
-        # Initialize live-build config
+        # Initialize live-build
         lb config \
           --architectures amd64 \
           --distribution bookworm \
           --archive-areas "main contrib non-free non-free-firmware" \
-          --bootloaders "grub-efi,syslinux" \
           --binary-images iso-hybrid \
           --debian-installer none \
           --memtest none \
@@ -49,45 +50,30 @@ jobs:
           --iso-volume "CoolOS 1.2.0" \
           --bootappend-live "boot=live quiet splash"
         
-        # Package lists
+        # Package list
         mkdir -p config/package-lists
-        
-        cat > config/package-lists/coolors.list.chroot << 'EOF'
-        # Kernel
+        cat > config/package-lists/coolors.list.chroot << 'PKGS'
         linux-image-amd64
-        
-        # Core
         systemd systemd-sysv dbus udev kmod procps locales sudo
-        
-        # Desktop
         openbox tint2 rofi pcmanfm thunar lxterminal
-        lightdm lightdm-gtk-greeter
-        picom dunst nitrogen lxappearance
+        lightdm lightdm-gtk-greeter picom dunst nitrogen lxappearance
         arc-theme papirus-icon-theme
         fonts-noto fonts-noto-color-emoji fonts-firacode fonts-dejavu fonts-liberation
         xorg xserver-xorg xinit x11-xserver-utils xterm dbus-x11
-        
-        # Apps
-        firefox-esr
-        libreoffice-writer libreoffice-calc libreoffice-impress
+        firefox-esr libreoffice-writer libreoffice-calc libreoffice-impress
         vlc mpv gimp inkscape geany evince galculator file-roller
         network-manager network-manager-gnome
         gnome-system-monitor baobab ncdu ufw
         pulseaudio pavucontrol
-        
-        # Dev
         build-essential git python3 curl wget vim-tiny nano
         htop tmux tree zip unzip p7zip-full
-        
-        # Live system
         live-boot live-config live-config-systemd
-        EOF
+        PKGS
         
         # Hooks
         mkdir -p config/hooks/live
         
-        # User setup hook
-        cat > config/hooks/live/0100-users.chroot << 'HOOKEOF'
+        cat > config/hooks/live/0100-users.chroot << 'HOOK'
         #!/bin/sh
         set -e
         echo "CoolOS" > /etc/hostname
@@ -102,20 +88,17 @@ jobs:
         echo "coolos ALL=(ALL) ALL" > /etc/sudoers.d/coolos
         chmod 440 /etc/sudoers.d/coolos
         systemctl enable NetworkManager 2>/dev/null || true
-        HOOKEOF
+        HOOK
         chmod +x config/hooks/live/0100-users.chroot
         
-        # Desktop config hook
-        cat > config/hooks/live/0200-desktop.chroot << 'HOOKEOF'
+        cat > config/hooks/live/0200-desktop.chroot << 'HOOK'
         #!/bin/sh
         set -e
-        
         mkdir -p /etc/xdg/openbox
         mkdir -p /etc/skel/.config/{openbox,tint2}
         mkdir -p /etc/lightdm/lightdm.conf.d
         
-        # Autostart
-        cat > /etc/xdg/openbox/autostart << 'AUTOSTART'
+        cat > /etc/xdg/openbox/autostart << 'AUTO'
         #!/bin/sh
         nitrogen --restore &
         tint2 &
@@ -124,10 +107,9 @@ jobs:
         pcmanfm --daemon &
         xset r rate 300 50
         xsetroot -cursor_name left_ptr
-        AUTOSTART
+        AUTO
         chmod +x /etc/xdg/openbox/autostart
         
-        # LightDM
         cat > /etc/lightdm/lightdm.conf.d/50-coolos.conf << 'LDM'
         [Seat:*]
         autologin-user=coolos
@@ -136,20 +118,16 @@ jobs:
         greeter-session=lightdm-gtk-greeter
         LDM
         
-        # Copy configs to skel
-        cp /etc/xdg/openbox/autostart /etc/skel/.config/openbox/ 2>/dev/null || true
-        
-        # Copy to user
         mkdir -p /home/coolos/.config/{openbox,tint2}
         cp /etc/xdg/openbox/autostart /home/coolos/.config/openbox/
         chown -R 1000:1000 /home/coolos
-        HOOKEOF
+        HOOK
         chmod +x config/hooks/live/0200-desktop.chroot
         
         # Build
-        sudo lb build 2>&1 | tail -50
+        lb build 2>&1 | tail -50 || true
         
-        # Find the ISO
+        # Find ISO
         ISO_FILE=$(ls -1 *.iso 2>/dev/null | head -n1)
         if [ -z "$ISO_FILE" ]; then
           echo "ERROR: No ISO found!"
@@ -157,17 +135,18 @@ jobs:
           exit 1
         fi
         
-        echo "ISO built: $ISO_FILE"
-        ls -lh "$ISO_FILE"
-        
-        # Move to output
         mkdir -p /coolos-build/output
         mv "$ISO_FILE" /coolos-build/output/
         cd /coolos-build/output
         sha256sum *.iso > SHA256SUMS
-        cat SHA256SUMS
         
         echo "BUILD COMPLETE"
+        ls -lh
+        BUILDEOF
+        chmod +x /tmp/build-coolos.sh
+
+    - name: Run build
+      run: sudo /tmp/build-coolos.sh
 
     - name: Upload ISO
       uses: actions/upload-artifact@v4
@@ -207,44 +186,18 @@ jobs:
         body: |
           ## CoolOS 1.2.0
           
-          A lightweight Linux distribution built for speed and simplicity.
-          
           **Default Credentials:** coolos / coolors
           
-          ### Fixes
-          - Rebuilt ISO using Debian live-build for proper UEFI/BIOS boot
-          - Fixed Hyper-V boot (disable Secure Boot in VM settings)
-          - Fixed VMware/VirtualBox boot
-          - Proper El Torito boot images for both BIOS and UEFI
+          ### Fixed
+          - Rebuilt with Debian live-build for proper UEFI/BIOS boot
+          - Works with Hyper-V Gen2 (disable Secure Boot)
+          - Works with VMware, VirtualBox, QEMU
           
-          ### Boot Instructions
-          
-          **Hyper-V:**
-          1. Create Generation 2 VM
-          2. Set 2048MB+ RAM
-          3. Disable Secure Boot (Settings > Security)
-          4. Attach ISO to DVD drive
-          5. Set DVD as first boot device
-          6. Start VM
-          
-          **VirtualBox:**
-          1. Create Linux > Debian (64-bit) VM
-          2. Set 2048MB+ RAM
-          3. Attach ISO to optical drive
-          4. Start VM
-          
-          **VMware:**
-          1. Create Linux > Debian 12.x 64-bit VM
-          2. Set 2048MB+ RAM
-          3. Attach ISO
-          4. Power on
-          
-          ### Features
-          - Debian Bookworm base
-          - Openbox window manager
-          - Pre-installed apps (Firefox, LibreOffice, GIMP, VLC, etc.)
-          - NetworkManager, UFW firewall
-          - PulseAudio sound
+          ### Hyper-V Setup
+          1. Gen 2 VM, 2048MB+ RAM
+          2. Disable Secure Boot
+          3. Attach ISO to DVD
+          4. Boot
           
           ### Verify
           ```bash
