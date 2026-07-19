@@ -1,0 +1,478 @@
+name: Build CoolOS ISO
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., 1.0.0)'
+        required: false
+        default: '1.0.0'
+
+env:
+  COOLOS_VERSION: ${{ github.event.inputs.version || '1.0.0' }}
+  COOLOS_ARCH: amd64
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          debootstrap \
+          squashfs-tools \
+          xorriso \
+          mtools \
+          dosfstools \
+          grub-pc-bin \
+          grub-efi-amd64-bin \
+          grub-efi-amd64-signed \
+          shim-signed \
+          mbr \
+          binutils \
+          isolinux \
+          syslinux-common \
+          syslinux \
+          git \
+          live-build
+
+    - name: Setup build environment
+      run: |
+        sudo mkdir -p /coolos-build/{config,cache,output}
+        sudo cp -r config/* /coolos-build/config/
+        sudo chmod +x /coolos-build/config/hooks/apt/*.chroot 2>/dev/null || true
+        sudo chmod +x /coolos-build/config/hooks/live/*.chroot 2>/dev/null || true
+
+    - name: Bootstrap base system
+      run: |
+        sudo debootstrap \
+          --arch=${{ env.COOLOS_ARCH }} \
+          --variant=minbase \
+          --include=apt-transport-https,ca-certificates,curl,wget,gnupg,systemd,systemd-sysv,dbus,udev,kmod,procps,locales \
+          bookworm \
+          /coolos-build/chroot \
+          http://deb.debian.org/debian/
+
+    - name: Configure APT
+      run: |
+        sudo cat > /coolos-build/chroot/etc/apt/sources.list << 'EOF'
+        deb http://deb.debian.org/debian/ bookworm main contrib non-free non-free-firmware
+        deb http://deb.debian.org/debian/ bookworm-updates main contrib non-free non-free-firmware
+        deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
+        EOF
+
+    - name: Mount filesystems
+      run: |
+        sudo mount --bind /dev /coolos-build/chroot/dev
+        sudo mount --bind /dev/pts /coolos-build/chroot/dev/pts
+        sudo mount -t proc proc /coolos-build/chroot/proc
+        sudo mount -t sysfs sysfs /coolos-build/chroot/sys
+        sudo cp /etc/resolv.conf /coolos-build/chroot/etc/resolv.conf
+
+    - name: Install desktop packages
+      run: |
+        sudo chroot /coolos-build/chroot /bin/bash -c '
+          set -e
+          export DEBIAN_FRONTEND=noninteractive
+          
+          apt-get update
+          
+          # Install kernel
+          apt-get install -y linux-image-amd64 linux-headers-amd64
+          
+          # Install desktop environment
+          apt-get install -y \
+            openbox \
+            tint2 \
+            plank \
+            rofi \
+            dmenu \
+            pcmanfm \
+            thunar \
+            lxterminal \
+            terminator \
+            lightdm \
+            lightdm-gtk-greeter \
+            picom \
+            dunst \
+            nitrogen \
+            lxappearance \
+            arc-theme \
+            papirus-icon-theme \
+            fonts-noto \
+            fonts-noto-color-emoji \
+            fonts-firacode \
+            fonts-dejavu \
+            fonts-liberation
+          
+          # Install applications
+          apt-get install -y \
+            firefox-esr \
+            chromium \
+            libreoffice-writer \
+            libreoffice-calc \
+            libreoffice-impress \
+            vlc \
+            mpv \
+            gimp \
+            inkscape \
+            geany \
+            evince \
+            galculator \
+            file-roller \
+            network-manager \
+            network-manager-gnome \
+            blueman \
+            cups \
+            system-config-printer \
+            gnome-system-monitor \
+            baobab \
+            ncdu \
+            ufw
+          
+          # Install development tools
+          apt-get install -y \
+            build-essential \
+            gcc \
+            g++ \
+            make \
+            git \
+            python3 \
+            python3-pip \
+            curl \
+            wget \
+            vim-tiny \
+            nano \
+            sudo \
+            locales \
+            htop \
+            tmux \
+            tree \
+            lsof \
+            rsync \
+            zip \
+            unzip \
+            p7zip-full
+          
+          # Install live system packages
+          apt-get install -y \
+            live-boot \
+            live-config \
+            live-config-systemd
+          
+          # Install boot loader
+          apt-get install -y \
+            grub-efi-amd64-bin \
+            grub-pc-bin \
+            grub2-common \
+            grub-common \
+            syslinux \
+            syslinux-common \
+            isolinux \
+            xorriso \
+            mtools
+          
+          # Clean up
+          apt-get clean
+          rm -rf /var/lib/apt/lists/*
+        '
+
+    - name: Configure system
+      run: |
+        sudo chroot /coolos-build/chroot /bin/bash -c '
+          set -e
+          
+          # Set hostname
+          echo "CoolOS" > /etc/hostname
+          echo "127.0.0.1 localhost CoolOS" > /etc/hosts
+          
+          # Set locale
+          echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+          locale-gen
+          update-locale LANG=en_US.UTF-8
+          
+          # Set timezone
+          ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+          
+          # Create default user
+          useradd -m -s /bin/bash -G sudo,audio,video,plugdev,netdev,bluetooth coolos
+          echo "coolos:coolors" | chpasswd
+          echo "root:coolors" | chpasswd
+          
+          # Configure sudo
+          echo "coolos ALL=(ALL) ALL" > /etc/sudoers.d/coolos
+          chmod 440 /etc/sudoers.d/coolos
+          
+          # Enable services
+          systemctl enable NetworkManager || true
+          systemctl enable lightdm || true
+        '
+
+    - name: Copy desktop configuration
+      run: |
+        sudo mkdir -p /coolos-build/chroot/etc/xdg/openbox
+        sudo mkdir -p /coolos-build/chroot/etc/skel/.config/tint2
+        sudo mkdir -p /coolos-build/chroot/etc/skel/.config/openbox
+        sudo mkdir -p /coolos-build/chroot/etc/lightdm/lightdm.conf.d
+        
+        # Copy Openbox menu
+        sudo cp config/includes.chroot/etc/xdg/openbox/menu.xml /coolos-build/chroot/etc/xdg/openbox/menu.xml
+        sudo cp config/includes.chroot/etc/xdg/openbox/rc.xml /coolos-build/chroot/etc/xdg/openbox/rc.xml
+        
+        # Copy autostart
+        sudo cp config/includes.chroot/etc/xdg/openbox/autostart /coolos-build/chroot/etc/xdg/openbox/autostart
+        sudo chmod +x /coolos-build/chroot/etc/xdg/openbox/autostart
+        
+        # Copy tint2 config
+        sudo cp config/includes.chroot/etc/skel/.config/tint2/tint2rc /coolos-build/chroot/etc/skel/.config/tint2/tint2rc
+        
+        # Copy bashrc
+        sudo cp config/includes.chroot/etc/skel/.bashrc /coolos-build/chroot/etc/skel/.bashrc
+        
+        # Copy vimrc
+        sudo cp config/includes.chroot/etc/skel/.vimrc /coolos-build/chroot/etc/skel/.vimrc
+        
+        # Copy desktop files
+        sudo mkdir -p /coolos-build/chroot/usr/share/applications
+        sudo cp config/includes.chroot/usr/share/applications/*.desktop /coolos-build/chroot/usr/share/applications/ 2>/dev/null || true
+        
+        # Configure LightDM
+        sudo cat > /coolos-build/chroot/etc/lightdm/lightdm.conf.d/50-coolos.conf << 'EOF'
+        [Seat:*]
+        autologin-user=coolos
+        autologin-user-timeout=0
+        user-session=openbox
+        EOF
+
+    - name: Unmount filesystems
+      run: |
+        sudo umount /coolos-build/chroot/dev/pts 2>/dev/null || true
+        sudo umount /coolos-build/chroot/dev 2>/dev/null || true
+        sudo umount /coolos-build/chroot/proc 2>/dev/null || true
+        sudo umount /coolos-build/chroot/sys 2>/dev/null || true
+
+    - name: Create SquashFS
+      run: |
+        sudo mkdir -p /coolos-build/iso/live
+        sudo mksquashfs \
+          /coolos-build/chroot \
+          /coolos-build/iso/live/filesystem.squashfs \
+          -comp xz \
+          -b 1M \
+          -Xbcj x86 \
+          -noappend
+        
+        # Calculate filesystem size
+        BLOCK_COUNT=$(sudo du -s /coolos-build/chroot | cut -f1)
+        echo $(( (BLOCK_COUNT * 4096 / 4096) + 1 )) | sudo tee /coolos-build/iso/live/filesystem.size
+
+    - name: Setup boot files
+      run: |
+        sudo mkdir -p /coolos-build/iso/{boot/grub/isolinux,live}
+        
+        # Copy kernel and initrd
+        KERNEL=$(ls /coolos-build/chroot/boot/vmlinuz-* 2>/dev/null | head -n1)
+        INITRD=$(ls /coolos-build/chroot/boot/initrd.img-* 2>/dev/null | head -n1)
+        
+        if [ -z "$KERNEL" ] || [ -z "$INITRD" ]; then
+          echo "Error: Kernel or initrd not found"
+          ls -la /coolos-build/chroot/boot/
+          exit 1
+        fi
+        
+        sudo cp "$KERNEL" /coolos-build/iso/live/vmlinuz
+        sudo cp "$INITRD" /coolos-build/iso/live/initrd
+
+    - name: Create GRUB config
+      run: |
+        sudo cat > /coolos-build/iso/boot/grub/grub.cfg << 'EOF'
+        set timeout=10
+        set default=0
+        
+        set color_normal=light-gray/black
+        set color_highlight=white/blue
+        
+        menuentry "CoolOS Live" {
+            linux /live/vmlinuz boot=live quiet splash
+            initrd /live/initrd
+        }
+        
+        menuentry "CoolOS Live (Safe Mode)" {
+            linux /live/vmlinuz boot=live quiet splash nomodeset
+            initrd /live/initrd
+        }
+        
+        menuentry "CoolOS Live (Verbose)" {
+            linux /live/vmlinuz boot=live verbose
+            initrd /live/initrd
+        }
+        
+        menuentry "CoolOS Install" {
+            linux /live/vmlinuz boot=live quiet splash components
+            initrd /live/initrd
+        }
+        EOF
+
+    - name: Create Isolinux config
+      run: |
+        sudo mkdir -p /coolos-build/iso/isolinux
+        sudo cat > /coolos-build/iso/isolinux/isolinux.cfg << 'EOF'
+        UI menu.c32
+        
+        MENU TITLE CoolOS Boot Menu
+        MENU TIMEOUT 100
+        MENU COLOR TITLE 1;36;44
+        MENU COLOR SEL 7;37;40
+        
+        LABEL coolos
+            MENU LABEL CoolOS Live
+            MENU DEFAULT
+            KERNEL /live/vmlinuz
+            APPEND boot=live quiet splash
+        
+        LABEL safe
+            MENU LABEL CoolOS Live (Safe Mode)
+            KERNEL /live/vmlinuz
+            APPEND boot=live quiet splash nomodeset
+        
+        LABEL verbose
+            MENU LABEL CoolOS Live (Verbose)
+            KERNEL /live/vmlinuz
+            APPEND boot=live verbose
+        
+        LABEL install
+            MENU LABEL CoolOS Install
+            KERNEL /live/vmlinuz
+            APPEND boot=live quiet splash components
+        EOF
+        
+        # Copy isolinux files
+        sudo cp /usr/lib/ISOLINUX/isolinux.bin /coolos-build/iso/isolinux/ 2>/dev/null || \
+          sudo cp /usr/share/syslinux/isolinux.bin /coolos-build/iso/isolinux/ 2>/dev/null || \
+          echo "Warning: isolinux.bin not found"
+        
+        sudo cp /usr/lib/ISOLINUX/isohdpfx.bin /coolos-build/iso/isolinux/ 2>/dev/null || \
+          sudo cp /usr/share/syslinux/isohdpfx.bin /coolos-build/iso/isolinux/ 2>/dev/null || \
+          echo "Warning: isohdpfx.bin not found"
+        
+        sudo cp /usr/share/syslinux/menu.c32 /coolos-build/iso/isolinux/ 2>/dev/null || true
+        sudo cp /usr/share/syslinux/libutil.c32 /coolos-build/iso/isolinux/ 2>/dev/null || true
+        sudo cp /usr/share/syslinux/libcom32.c32 /coolos-build/iso/isolinux/ 2>/dev/null || true
+        sudo cp /usr/share/syslinux/ldlinux.c32 /coolos-build/iso/isolinux/ 2>/dev/null || true
+
+    - name: Create GRUB EFI image
+      run: |
+        sudo mkdir -p /coolos-build/iso/boot/grub/x86_64-efi
+        sudo mkdir -p /coolos-build/iso/boot/grub/i386-pc
+        
+        # Create EFI boot image
+        sudo grub-mkimage \
+          --directory=/usr/lib/grub/x86_64-efi \
+          --output=/coolos-build/iso/boot/grub/x86_64-efi/core.efi \
+          --format=x86_64-efi \
+          --prefix="(cd)/boot/grub" \
+          fat iso9660 normal boot linux configfile || echo "EFI image creation skipped"
+
+    - name: Build ISO
+      run: |
+        ISO_NAME="CoolOS-${{ env.COOLOS_VERSION }}-${{ env.COOLOS_ARCH }}.iso"
+        
+        sudo xorriso -as mkisofs \
+          -o "/coolos-build/output/$ISO_NAME" \
+          -isohybrid-mbr /coolos-build/iso/isolinux/isohdpfx.bin \
+          -c isolinux/boot.cat \
+          -b isolinux/isolinux.bin \
+          -no-emul-boot \
+          -boot-load-size 4 \
+          -boot-info-table \
+          -eltorito-alt-boot \
+          -e boot/grub/x86_64-efi/core.efi \
+          -no-emul-boot \
+          -isohybrid-gpt-basdat \
+          -V "CoolOS" \
+          -R -J \
+          /coolos-build/iso
+        
+        echo "ISO created: /coolos-build/output/$ISO_NAME"
+        ls -lh "/coolos-build/output/$ISO_NAME"
+
+    - name: Generate checksums
+      run: |
+        cd /coolos-build/output
+        sha256sum *.iso > SHA256SUMS
+        cat SHA256SUMS
+
+    - name: Upload ISO artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: CoolOS-${{ env.COOLOS_VERSION }}-${{ env.COOLOS_ARCH }}
+        path: /coolos-build/output/*.iso
+        retention-days: 30
+
+    - name: Upload checksums
+      uses: actions/upload-artifact@v4
+      with:
+        name: checksums
+        path: /coolos-build/output/SHA256SUMS
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    
+    steps:
+    - name: Download ISO
+      uses: actions/download-artifact@v4
+      with:
+        name: CoolOS-${{ env.COOLOS_VERSION }}-${{ env.COOLOS_ARCH }}
+    
+    - name: Download checksums
+      uses: actions/download-artifact@v4
+      with:
+        name: checksums
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: CoolOS ${{ env.COOLOS_VERSION }}
+        body: |
+          ## CoolOS ${{ env.COOLOS_VERSION }}
+          
+          A lightweight Linux distribution built for speed and simplicity.
+          
+          ### Default Credentials
+          - **Username:** coolos
+          - **Password:** coolors
+          
+          ### Features
+          - Debian Bookworm base
+          - Openbox window manager
+          - Pre-installed applications
+          - UEFI + BIOS boot support
+          
+          ### Download
+          - **ISO:** CoolOS-${{ env.COOLOS_VERSION }}-${{ env.COOLOS_ARCH }}.iso
+          - **SHA256:** See SHA256SUMS for verification
+          
+          ### How to verify
+          ```bash
+          sha256sum -c SHA256SUMS
+          ```
+        files: |
+          *.iso
+          SHA256SUMS
+        draft: false
+        prerelease: false

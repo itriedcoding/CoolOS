@@ -4,8 +4,11 @@ set -e
 # CoolOS Theming Configuration
 echo "Configuring CoolOS themes..."
 
-# Set default GTK theme
+# Create user config directories
 mkdir -p /root/.config/gtk-3.0
+mkdir -p /home/coolos/.config/gtk-3.0
+
+# Create GTK settings
 cat > /root/.config/gtk-3.0/settings.ini << 'EOF'
 [Settings]
 gtk-theme-name=Arc-Dark
@@ -24,15 +27,10 @@ gtk-xft-hintstyle=hintslight
 gtk-xft-rgba=rgb
 EOF
 
-# Set default icon theme
-mkdir -p /root/.config/papirus
-cat > /root/.config/papirus/papirus-folders.conf << 'EOF'
-[Paper]
-theme=Adwaita
-color=blue
-EOF
+# Copy to user
+cp /root/.config/gtk-3.0/settings.ini /home/coolos/.config/gtk-3.0/settings.ini 2>/dev/null || true
 
-# Set default cursor theme
+# Create cursor theme
 mkdir -p /root/.icons/default
 cat > /root/.icons/default/index.theme << 'EOF'
 [Icon Theme]
@@ -40,5 +38,10 @@ Name=Default
 Comment=Default cursor theme
 Inherits=Adwaita
 EOF
+
+# Copy to user
+mkdir -p /home/coolos/.icons/default
+cp /root/.icons/default/index.theme /home/coolos/.icons/default/index.theme 2>/dev/null || true
+chown -R coolos:coolos /home/coolos/.icons 2>/dev/null || true
 
 echo "Theming configuration complete."

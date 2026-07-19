@@ -4,15 +4,10 @@ set -e
 # CoolOS Desktop Configuration
 echo "Configuring CoolOS Desktop..."
 
-# Set default display manager
-echo "/usr/sbin/lightdm" | debconf-set-selections
-
-# Enable lightdm
-systemctl enable lightdm || true
-
 # Configure Openbox
 mkdir -p /etc/xdg/openbox
 mkdir -p /root/.config/openbox
+mkdir -p /home/coolos/.config/openbox
 
 # Create autostart for Openbox
 cat > /etc/xdg/openbox/autostart << 'EOF'
@@ -46,37 +41,11 @@ xset r rate 300 50
 xsetroot -cursor_name left_ptr
 EOF
 
-# Create Openbox menu
-cat > /etc/xdg/openbox/menu.xml << 'EOF'
-<?xml version="1.0" encoding="utf-8"?>
-<openbox_menu xmlns="http://openbox.org/3.4/menu">
-  <menu id="root-menu" label="CoolOS Menu">
-    <separator label="Applications"/>
-    <item label="Terminal">
-      <action name="Execute"><command>lxterminal</command></action>
-    </item>
-    <item label="File Manager">
-      <action name="Execute"><command>pcmanfm</command></action>
-    </item>
-    <item label="Web Browser">
-      <action name="Execute"><command>firefox-esr</command></action>
-    </item>
-    <item label="Text Editor">
-      <action name="Execute"><command>geany</command></action>
-    </item>
-    <separator label="System"/>
-    <item label="System Monitor">
-      <action name="Execute"><command>gnome-system-monitor</command></action>
-    </item>
-    <item label="Settings">
-      <action name="Execute"><command>lxappearance</command></action>
-    </item>
-    <separator/>
-    <item label="Logout">
-      <action name="Exit"><prompt>Logout from CoolOS?</prompt></action>
-    </item>
-  </menu>
-</openbox_menu>
-EOF
+chmod +x /etc/xdg/openbox/autostart
+
+# Copy autostart to user directories
+cp /etc/xdg/openbox/autostart /root/.config/openbox/autostart 2>/dev/null || true
+cp /etc/xdg/openbox/autostart /home/coolos/.config/openbox/autostart 2>/dev/null || true
+chown -R coolos:coolos /home/coolos/.config 2>/dev/null || true
 
 echo "Desktop configuration complete."

@@ -3,7 +3,7 @@
 # CoolOS Build Script
 # Lightweight Linux Distribution
 #
-# Usage: ./build.sh [options]
+# Usage: sudo ./build.sh [options]
 #
 
 set -e
@@ -15,11 +15,11 @@ COOLOS_ARCH="amd64"
 COOLOS_DEBIAN="bookworm"
 
 # Directories
-BUILD_DIR="$(pwd)/build"
-CACHE_DIR="$(pwd)/cache"
-CONFIG_DIR="$(pwd)/config"
-ISO_DIR="$(pwd)/iso"
-OUTPUT_DIR="$(pwd)/output"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BUILD_DIR="$(dirname "$SCRIPT_DIR")/build"
+CONFIG_DIR="$(dirname "$SCRIPT_DIR")/config"
+ISO_DIR="$(dirname "$SCRIPT_DIR")/iso"
+OUTPUT_DIR="$(dirname "$SCRIPT_DIR")/output"
 
 # Colors
 RED='\033[0;31m'
@@ -58,7 +58,7 @@ print_info() {
 check_root() {
     if [[ $EUID -ne 0 ]]; then
         print_error "This script must be run as root"
-        print_info "Use: sudo ./build.sh"
+        print_info "Use: sudo ./scripts/build.sh"
         exit 1
     fi
 }
@@ -69,7 +69,7 @@ check_dependencies() {
     local deps=("debootstrap" "squashfs-tools" "xorriso" "mtools" "dosfstools" "grub-pc-bin" "grub-efi-amd64-bin" "mbr" "binutils")
     
     for dep in "${deps[@]}"; do
-        if ! command -v "$dep" &> /dev/null && ! dpkg -l "$dep" &> /dev/null; then
+        if ! command -v "$dep" &> /dev/null && ! dpkg -l "$dep" &> /dev/null 2>&1; then
             print_warning "Installing missing dependency: $dep"
             apt-get update
             apt-get install -y "$dep"
@@ -82,7 +82,7 @@ check_dependencies() {
 setup_directories() {
     print_status "Setting up build directories..."
     
-    mkdir -p "$BUILD_DIR" "$CACHE_DIR" "$ISO_DIR" "$OUTPUT_DIR"
+    mkdir -p "$BUILD_DIR" "$ISO_DIR/live" "$OUTPUT_DIR"
     
     # Clean previous build
     if [ -d "$BUILD_DIR" ]; then
@@ -99,7 +99,7 @@ debootstrap_base() {
     debootstrap \
         --arch="$COOLOS_ARCH" \
         --variant=minbase \
-        --include=apt-transport-https,ca-certificates,curl,wget,gnupg \
+        --include=apt-transport-https,ca-certificates,curl,wget,gnupg,systemd,systemd-sysv,dbus,udev,kmod,procps,locales \
         "$COOLOS_DEBIAN" \
         "$BUILD_DIR" \
         http://deb.debian.org/debian/
@@ -115,19 +115,16 @@ configure_apt() {
 deb http://deb.debian.org/debian/ $COOLOS_DEBIAN main contrib non-free non-free-firmware
 deb http://deb.debian.org/debian/ $COOLOS_DEBIAN-updates main contrib non-free non-free-firmware
 deb http://security.debian.org/debian-security $COOLOS_DEBIAN-security main contrib non-free non-free-firmware
-
-# CoolOS Custom Repository
-# deb http://repo.coolors.org/ $COOLOS_CODENAME main
 EOF
 
     # Mount necessary filesystems
-    mount --bind /dev "$BUILD_DIR/dev"
-    mount --bind /dev/pts "$BUILD_DIR/dev/pts"
-    mount -t proc proc "$BUILD_DIR/proc"
-    mount -t sysfs sysfs "$BUILD_DIR/sys"
+    mount --bind /dev "$BUILD_DIR/dev" 2>/dev/null || true
+    mount --bind /dev/pts "$BUILD_DIR/dev/pts" 2>/dev/null || true
+    mount -t proc proc "$BUILD_DIR/proc" 2>/dev/null || true
+    mount -t sysfs sysfs "$BUILD_DIR/sys" 2>/dev/null || true
     
     # Copy DNS configuration
-    cp /etc/resolv.conf "$BUILD_DIR/etc/resolv.conf"
+    cp /etc/resolv.conf "$BUILD_DIR/etc/resolv.conf" 2>/dev/null || true
     
     # Update package lists inside chroot
     chroot "$BUILD_DIR" apt-get update
@@ -138,11 +135,9 @@ EOF
 install_packages() {
     print_status "Installing CoolOS packages..."
     
-    # Copy package lists
-    cp -r "$CONFIG_DIR/package-lists" "$BUILD_DIR/tmp/"
-    
-    chroot "$BUILD_DIR" << 'CHROOT'
+    chroot "$BUILD_DIR" /bin/bash -c '
         set -e
+        export DEBIAN_FRONTEND=noninteractive
         
         # Update package lists
         apt-get update
@@ -156,20 +151,104 @@ install_packages() {
             dbus \
             udev \
             kmod \
-            procps
+            procps \
+            locales
         
-        # Install all package lists
-        for list in /tmp/package-lists/*.list.chroot; do
-            if [ -f "$list" ]; then
-                echo "Installing packages from $list..."
-                xargs -a "$list" apt-get install -y || true
-            fi
-        done
+        # Install desktop environment
+        apt-get install -y \
+            openbox \
+            tint2 \
+            plank \
+            rofi \
+            dmenu \
+            pcmanfm \
+            thunar \
+            lxterminal \
+            terminator \
+            lightdm \
+            lightdm-gtk-greeter \
+            picom \
+            dunst \
+            nitrogen \
+            lxappearance \
+            arc-theme \
+            papirus-icon-theme \
+            fonts-noto \
+            fonts-noto-color-emoji \
+            fonts-firacode \
+            fonts-dejavu \
+            fonts-liberation
+        
+        # Install applications
+        apt-get install -y \
+            firefox-esr \
+            chromium \
+            libreoffice-writer \
+            libreoffice-calc \
+            libreoffice-impress \
+            vlc \
+            mpv \
+            gimp \
+            inkscape \
+            geany \
+            evince \
+            galculator \
+            file-roller \
+            network-manager \
+            network-manager-gnome \
+            blueman \
+            cups \
+            system-config-printer \
+            gnome-system-monitor \
+            baobab \
+            ncdu \
+            ufw
+        
+        # Install development tools
+        apt-get install -y \
+            build-essential \
+            gcc \
+            g++ \
+            make \
+            git \
+            python3 \
+            python3-pip \
+            curl \
+            wget \
+            vim-tiny \
+            nano \
+            sudo \
+            htop \
+            tmux \
+            tree \
+            lsof \
+            rsync \
+            zip \
+            unzip \
+            p7zip-full
+        
+        # Install live system packages
+        apt-get install -y \
+            live-boot \
+            live-config \
+            live-config-systemd
+        
+        # Install boot loader
+        apt-get install -y \
+            grub-efi-amd64-bin \
+            grub-pc-bin \
+            grub2-common \
+            grub-common \
+            syslinux \
+            syslinux-common \
+            isolinux \
+            xorriso \
+            mtools
         
         # Clean up
         apt-get clean
         rm -rf /var/lib/apt/lists/*
-CHROOT
+    '
     
     print_status "Packages installed"
 }
@@ -182,14 +261,27 @@ configure_system() {
     echo "127.0.0.1 localhost CoolOS" > "$BUILD_DIR/etc/hosts"
     
     # Set locale
-    chroot "$BUILD_DIR" << 'CHROOT'
+    chroot "$BUILD_DIR" /bin/bash -c '
         echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
         locale-gen
         update-locale LANG=en_US.UTF-8
-CHROOT
+    '
     
     # Set timezone
     chroot "$BUILD_DIR" ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+    
+    # Create default user
+    chroot "$BUILD_DIR" /bin/bash -c '
+        useradd -m -s /bin/bash -G sudo,audio,video,plugdev,netdev,bluetooth coolos 2>/dev/null || true
+        echo "coolos:coolors" | chpasswd
+        echo "root:coolors" | chpasswd
+        echo "coolos ALL=(ALL) ALL" > /etc/sudoers.d/coolos
+        chmod 440 /etc/sudoers.d/coolos
+    '
+    
+    # Enable services
+    chroot "$BUILD_DIR" systemctl enable NetworkManager 2>/dev/null || true
+    chroot "$BUILD_DIR" systemctl enable lightdm 2>/dev/null || true
     
     # Configure fstab for live system
     cat > "$BUILD_DIR/etc/fstab" << 'EOF'
@@ -206,31 +298,65 @@ EOF
 apply_hooks() {
     print_status "Applying CoolOS customizations..."
     
-    # Copy hooks to build directory
-    cp -r "$CONFIG_DIR/hooks" "$BUILD_DIR/tmp/"
+    # Copy desktop configuration
+    mkdir -p "$BUILD_DIR/etc/xdg/openbox"
+    mkdir -p "$BUILD_DIR/etc/skel/.config/tint2"
+    mkdir -p "$BUILD_DIR/etc/skel/.config/openbox"
+    mkdir -p "$BUILD_DIR/etc/lightdm/lightdm.conf.d"
+    mkdir -p "$BUILD_DIR/usr/share/applications"
     
-    chroot "$BUILD_DIR" << 'CHROOT'
-        set -e
-        
-        # Run APT hooks
-        for hook in /tmp/hooks/apt/*.chroot; do
-            if [ -f "$hook" ] && [ -x "$hook" ]; then
-                echo "Running hook: $hook"
-                "$hook"
-            fi
-        done
-        
-        # Run live hooks
-        for hook in /tmp/hooks/live/*.chroot; do
-            if [ -f "$hook" ] && [ -x "$hook" ]; then
-                echo "Running hook: $hook"
-                "$hook"
-            fi
-        done
-        
-        # Clean up
-        rm -rf /tmp/hooks
-CHROOT
+    # Copy Openbox configuration
+    cp "$CONFIG_DIR/includes.chroot/etc/xdg/openbox/menu.xml" "$BUILD_DIR/etc/xdg/openbox/menu.xml" 2>/dev/null || true
+    cp "$CONFIG_DIR/includes.chroot/etc/xdg/openbox/rc.xml" "$BUILD_DIR/etc/xdg/openbox/rc.xml" 2>/dev/null || true
+    cp "$CONFIG_DIR/includes.chroot/etc/xdg/openbox/autostart" "$BUILD_DIR/etc/xdg/openbox/autostart" 2>/dev/null || true
+    chmod +x "$BUILD_DIR/etc/xdg/openbox/autostart" 2>/dev/null || true
+    
+    # Copy user configurations
+    cp "$CONFIG_DIR/includes.chroot/etc/skel/.config/tint2/tint2rc" "$BUILD_DIR/etc/skel/.config/tint2/tint2rc" 2>/dev/null || true
+    cp "$CONFIG_DIR/includes.chroot/etc/skel/.bashrc" "$BUILD_DIR/etc/skel/.bashrc" 2>/dev/null || true
+    cp "$CONFIG_DIR/includes.chroot/etc/skel/.vimrc" "$BUILD_DIR/etc/skel/.vimrc" 2>/dev/null || true
+    
+    # Copy desktop files
+    cp "$CONFIG_DIR/includes.chroot/usr/share/applications/"*.desktop "$BUILD_DIR/usr/share/applications/" 2>/dev/null || true
+    
+    # Configure LightDM
+    cat > "$BUILD_DIR/etc/lightdm/lightdm.conf.d/50-coolos.conf" << 'EOF'
+[Seat:*]
+autologin-user=coolos
+autologin-user-timeout=0
+user-session=openbox
+EOF
+    
+    # Copy configurations to user
+    mkdir -p "$BUILD_DIR/home/coolos/.config/openbox"
+    mkdir -p "$BUILD_DIR/home/coolos/.config/tint2"
+    mkdir -p "$BUILD_DIR/home/coolos/.config/gtk-3.0"
+    mkdir -p "$BUILD_DIR/home/coolos/.icons/default"
+    
+    cp "$BUILD_DIR/etc/xdg/openbox/autostart" "$BUILD_DIR/home/coolos/.config/openbox/autostart" 2>/dev/null || true
+    cp "$BUILD_DIR/etc/xdg/openbox/menu.xml" "$BUILD_DIR/home/coolos/.config/openbox/menu.xml" 2>/dev/null || true
+    cp "$BUILD_DIR/etc/xdg/openbox/rc.xml" "$BUILD_DIR/home/coolos/.config/openbox/rc.xml" 2>/dev/null || true
+    cp "$BUILD_DIR/etc/skel/.config/tint2/tint2rc" "$BUILD_DIR/home/coolos/.config/tint2/tint2rc" 2>/dev/null || true
+    
+    # Set GTK theme
+    cat > "$BUILD_DIR/home/coolos/.config/gtk-3.0/settings.ini" << 'EOF'
+[Settings]
+gtk-theme-name=Arc-Dark
+gtk-icon-theme-name=Papirus-Dark
+gtk-cursor-theme-name=Adwaita
+gtk-font-name=Noto Sans 10
+EOF
+    
+    # Set cursor theme
+    cat > "$BUILD_DIR/home/coolos/.icons/default/index.theme" << 'EOF'
+[Icon Theme]
+Name=Default
+Comment=Default cursor theme
+Inherits=Adwaita
+EOF
+    
+    # Fix permissions
+    chown -R 1000:1000 "$BUILD_DIR/home/coolos" 2>/dev/null || true
     
     print_status "Customizations applied"
 }
@@ -238,15 +364,13 @@ CHROOT
 configure_bootloader() {
     print_status "Configuring boot loader..."
     
-    # Copy kernel and initrd
-    mkdir -p "$ISO_DIR/live"
-    
     # Find kernel and initrd
     KERNEL=$(ls "$BUILD_DIR"/boot/vmlinuz-* 2>/dev/null | head -n1)
     INITRD=$(ls "$BUILD_DIR"/boot/initrd.img-* 2>/dev/null | head -n1)
     
     if [ -z "$KERNEL" ] || [ -z "$INITRD" ]; then
         print_error "Kernel or initrd not found"
+        ls -la "$BUILD_DIR/boot/"
         exit 1
     fi
     
@@ -286,23 +410,61 @@ menuentry "CoolOS Install" {
 }
 EOF
     
-    # Create BIOS boot image
-    mkdir -p "$ISO_DIR/boot/grub/i386-pc"
-    grub-mkimage \
-        --directory="$BUILD_DIR/usr/lib/grub/i386-pc" \
-        --output="$ISO_DIR/boot/grub/i386-pc/core.img" \
-        --format=i386-pc \
-        --prefix="(cd)/boot/grub" \
-        biosdisk iso9660 part_msdos fat normal boot linux
+    # Create Isolinux configuration
+    mkdir -p "$ISO_DIR/isolinux"
     
-    # Create EFI boot image
+    cat > "$ISO_DIR/isolinux/isolinux.cfg" << 'EOF'
+UI menu.c32
+
+MENU TITLE CoolOS Boot Menu
+MENU TIMEOUT 100
+MENU COLOR TITLE 1;36;44
+MENU COLOR SEL 7;37;40
+
+LABEL coolos
+    MENU LABEL CoolOS Live
+    MENU DEFAULT
+    KERNEL /live/vmlinuz
+    APPEND boot=live quiet splash
+
+LABEL safe
+    MENU LABEL CoolOS Live (Safe Mode)
+    KERNEL /live/vmlinuz
+    APPEND boot=live quiet splash nomodeset
+
+LABEL verbose
+    MENU LABEL CoolOS Live (Verbose)
+    KERNEL /live/vmlinuz
+    APPEND boot=live verbose
+
+LABEL install
+    MENU LABEL CoolOS Install
+    KERNEL /live/vmlinuz
+    APPEND boot=live quiet splash components
+EOF
+    
+    # Copy isolinux files
+    cp /usr/lib/ISOLINUX/isolinux.bin "$ISO_DIR/isolinux/" 2>/dev/null || \
+        cp /usr/share/syslinux/isolinux.bin "$ISO_DIR/isolinux/" 2>/dev/null || true
+    
+    cp /usr/lib/ISOLINUX/isohdpfx.bin "$ISO_DIR/isolinux/" 2>/dev/null || \
+        cp /usr/share/syslinux/isohdpfx.bin "$ISO_DIR/isolinux/" 2>/dev/null || true
+    
+    cp /usr/share/syslinux/menu.c32 "$ISO_DIR/isolinux/" 2>/dev/null || true
+    cp /usr/share/syslinux/libutil.c32 "$ISO_DIR/isolinux/" 2>/dev/null || true
+    cp /usr/share/syslinux/libcom32.c32 "$ISO_DIR/isolinux/" 2>/dev/null || true
+    cp /usr/share/syslinux/ldlinux.c32 "$ISO_DIR/isolinux/" 2>/dev/null || true
+    
+    # Create GRUB EFI image
     mkdir -p "$ISO_DIR/boot/grub/x86_64-efi"
+    mkdir -p "$ISO_DIR/boot/grub/i386-pc"
+    
     grub-mkimage \
-        --directory="$BUILD_DIR/usr/lib/grub/x86_64-efi" \
+        --directory=/usr/lib/grub/x86_64-efi \
         --output="$ISO_DIR/boot/grub/x86_64-efi/core.efi" \
         --format=x86_64-efi \
         --prefix="(cd)/boot/grub" \
-        fat iso9660 normal boot linux
+        fat iso9660 normal boot linux configfile 2>/dev/null || echo "EFI image creation skipped"
     
     print_status "Boot loader configured"
 }
@@ -327,9 +489,8 @@ create_squashfs() {
         -e boot
     
     # Create filesystem.size
-    BLOCK_SIZE=$(stat -f -c %S "$ISO_DIR/live/filesystem.squashfs")
     BLOCK_COUNT=$(du -s "$BUILD_DIR" | cut -f1)
-    echo $(( (BLOCK_COUNT * 4096 / BLOCK_SIZE) + 1 )) > "$ISO_DIR/live/filesystem.size"
+    echo $(( (BLOCK_COUNT * 4096 / 4096) + 1 )) > "$ISO_DIR/live/filesystem.size"
     
     print_status "SquashFS image created"
 }
@@ -339,13 +500,10 @@ create_iso() {
     
     local ISO_NAME="CoolOS-${COOLOS_VERSION}-${COOLOS_ARCH}.iso"
     
-    # Create BIOS boot image
-    dd if=/usr/lib/ISOLINUX/isohdpfx.bin of=/tmp/isohdpfx.bin bs=4096 count=1 2>/dev/null || true
-    
     # Create ISO with xorriso
     xorriso -as mkisofs \
         -o "$OUTPUT_DIR/$ISO_NAME" \
-        -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
+        -isohybrid-mbr "$ISO_DIR/isolinux/isohdpfx.bin" \
         -c isolinux/boot.cat \
         -b isolinux/isolinux.bin \
         -no-emul-boot \
@@ -373,6 +531,9 @@ cleanup() {
     
     # Remove build directory
     rm -rf "$BUILD_DIR"
+    
+    # Remove ISO working directory
+    rm -rf "$ISO_DIR"
     
     print_status "Cleanup complete"
 }

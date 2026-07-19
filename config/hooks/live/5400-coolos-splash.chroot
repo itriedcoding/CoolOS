@@ -4,11 +4,10 @@ set -e
 # CoolOS Splash Screen Configuration
 echo "Configuring CoolOS splash screen..."
 
-# Create splash theme directory
-mkdir -p /boot/grub/splash
+# Create GRUB configuration directory
+mkdir -p /etc/default/grub.d
 
-# Create GRUB background
-# Create a simple CoolOS themed GRUB config
+# Create CoolOS GRUB config
 cat > /etc/default/grub.d/99-coolos.cfg << 'EOF'
 # CoolOS GRUB Configuration
 
@@ -31,6 +30,9 @@ GRUB_CMDLINE_LINUX=""
 GRUB_DISABLE_OS_PROBER=true
 EOF
 
-update-grub
+# Update GRUB if update-grub exists
+if command -v update-grub >/dev/null 2>&1; then
+    update-grub
+fi
 
 echo "Splash screen configuration complete."

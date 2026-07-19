@@ -5,7 +5,6 @@
 openbox
 obconf
 obmenu
-openbox-lxde-session
 
 # Panel
 tint2
@@ -26,7 +25,6 @@ thunar-volman
 # Terminal
 lxterminal
 terminator
-alacritty
 
 # Display manager
 lightdm
@@ -56,10 +54,10 @@ nitrogen
 
 # Theming
 lxappearance
-gtk-theme-murrine
-murrine-themes
 arc-theme
 papirus-icon-theme
+
+# Fonts
 fonts-noto
 fonts-noto-color-emoji
 fonts-firacode

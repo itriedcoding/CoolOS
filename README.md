@@ -8,12 +8,57 @@
 [![GitHub forks](https://img.shields.io/github/forks/itriedcoding/CoolOS?style=social)](https://github.com/itriedcoding/CoolOS/network/members)
 [![GitHub issues](https://img.shields.io/github/issues/itriedcoding/CoolOS)](https://github.com/itriedcoding/CoolOS/issues)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Build ISO](https://github.com/itriedcoding/CoolOS/actions/workflows/build-iso.yml/badge.svg)](https://github.com/itriedcoding/CoolOS/actions/workflows/build-iso.yml)
 
 </div>
 
 ---
 
 CoolOS is a lightweight Linux distribution designed for speed, simplicity, and modern computing needs. Built on Debian, it provides a complete desktop experience with pre-installed applications, development tools, and multimedia software.
+
+## Download
+
+### Pre-built ISO (Recommended)
+
+Download the latest pre-built ISO from [GitHub Releases](https://github.com/itriedcoding/CoolOS/releases).
+
+1. Go to the [Releases page](https://github.com/itriedcoding/CoolOS/releases)
+2. Download `CoolOS-1.0.0-amd64.iso`
+3. Verify the download with SHA256 checksum:
+   ```bash
+   sha256sum -c SHA256SUMS
+   ```
+
+### Build from Source
+
+If you prefer to build the ISO yourself:
+
+```bash
+# Clone the repository
+git clone https://github.com/itriedcoding/CoolOS.git
+cd CoolOS
+
+# Make scripts executable
+chmod +x scripts/*.sh
+
+# Build the ISO (requires Linux host)
+sudo ./scripts/build.sh
+```
+
+## Quick Start
+
+### Default Credentials
+
+| Username | Password |
+|----------|----------|
+| coolos   | coolors  |
+
+### Boot Options
+
+1. **CoolOS Live** - Boot into live desktop
+2. **CoolOS Live (Safe Mode)** - Boot with basic graphics
+3. **CoolOS Live (Verbose)** - Boot with detailed output
+4. **CoolOS Install** - Start installation wizard
 
 ## Features
 
@@ -48,54 +93,34 @@ CoolOS is a lightweight Linux distribution designed for speed, simplicity, and m
 - VMware support
 - Proxmox templates
 
-## Quick Start
+## Virtual Machine Setup
 
-### Prerequisites
-
-- Debian/Ubuntu-based host system
-- 8GB RAM minimum
-- 20GB free disk space
-- Root access
-
-### Installation
+### QEMU/KVM
 
 ```bash
-# Clone the repository
-git clone https://github.com/itriedcoding/CoolOS.git
-cd CoolOS
-
-# Make scripts executable
-chmod +x scripts/*.sh
-
-# Build the ISO
-sudo ./scripts/build.sh
-```
-
-### Testing
-
-```bash
-# Test with QEMU
-sudo ./scripts/test-qemu.sh
-
-# Test in UEFI mode
-sudo ./scripts/test-qemu.sh -m uefi
-```
-
-### Creating Virtual Machines
-
-```bash
-# Create QEMU/KVM VM
+# Create VM
 sudo ./scripts/create-vm.sh -k myvm
 
-# Create all VM formats
-sudo ./scripts/create-vm.sh -a
+# Test ISO
+sudo ./scripts/test-qemu.sh
 ```
 
-## Default Credentials
+### VirtualBox
 
-| Username | Password |
-|----------|----------|
-| coolos   | coolors  |
+1. Create a new VM
+2. Set type to Linux, version to Debian (64-bit)
+3. Allocate at least 2GB RAM
+4. Create a 20GB virtual hard disk
+5. Attach the ISO to the optical drive
+6. Start the VM
+
+### VMware
+
+1. Create a new VM
+2. Select "Installer disc image file (iso)"
+3. Browse to the ISO file
+4. Follow the wizard
+5. Start the VM
 
 ## Included Software
 
@@ -123,19 +148,21 @@ sudo ./scripts/create-vm.sh -a
 
 ```
 CoolOS/
-├── config/                     # Build configuration
-│   ├── package-lists/         # Package lists
-│   ├── hooks/                 # Build hooks
-│   ├── includes.chroot/       # System files
-│   └── bootloaders/          # Boot loader configs
-├── scripts/                   # Build scripts
-│   ├── build.sh              # Main build script
-│   ├── create-iso.sh         # ISO creation
-│   ├── create-vm.sh          # VM creation
-│   └── test-qemu.sh          # Testing script
-├── docs/                      # Documentation
-├── iso/                       # ISO build directory
-└── output/                    # Built ISOs
+├── .github/workflows/    # GitHub Actions CI/CD
+│   └── build-iso.yml    # Automated ISO builder
+├── config/               # Build configuration
+│   ├── package-lists/   # Package lists
+│   ├── hooks/           # Build hooks
+│   ├── includes.chroot/ # System files
+│   └── bootloaders/    # Boot loader configs
+├── scripts/              # Build scripts
+│   ├── build.sh         # Main build script
+│   ├── create-iso.sh    # ISO creation
+│   ├── create-vm.sh     # VM creation
+│   └── test-qemu.sh     # Testing script
+├── docs/                 # Documentation
+├── iso/                  # ISO build directory
+└── output/               # Built ISOs
 ```
 
 ## Documentation
@@ -186,21 +213,21 @@ set -e
 
 This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
 
+## Support
+
+- **Issues:** [GitHub Issues](https://github.com/itriedcoding/CoolOS/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/itriedcoding/CoolOS/discussions)
+
 ## Acknowledgments
 
 - [Debian](https://www.debian.org/) - The base distribution
 - [Openbox](http://openbox.org/) - Window manager
 - All open-source contributors
 
-## Support
-
-- **Issues:** [GitHub Issues](https://github.com/itriedcoding/CoolOS/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/itriedcoding/CoolOS/discussions)
-
 ---
 
 <div align="center">
 
-**Made with ❤️ by itriedcoding**
+**Made with ❤️ by [itriedcoding](https://github.com/itriedcoding)**
 
 </div>

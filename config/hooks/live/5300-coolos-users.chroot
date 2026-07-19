@@ -8,7 +8,7 @@ echo "Configuring CoolOS users..."
 echo "root:coolors" | chpasswd
 
 # Create default user
-useradd -m -s /bin/bash -G sudo,audio,video,plugdev,netdev,bluetooth coolos
+useradd -m -s /bin/bash -G sudo,audio,video,plugdev,netdev,bluetooth coolos 2>/dev/null || true
 echo "coolos:coolors" | chpasswd
 
 # Configure sudo for coolos user

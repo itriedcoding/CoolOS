@@ -5,8 +5,8 @@ set -e
 echo "Configuring CoolOS networking..."
 
 # Enable NetworkManager
-systemctl enable NetworkManager || true
-systemctl enable NetworkManager-dispatcher || true
+systemctl enable NetworkManager 2>/dev/null || true
+systemctl enable NetworkManager-dispatcher 2>/dev/null || true
 
 # Configure DNS
 cat > /etc/resolv.conf << 'EOF'
@@ -15,11 +15,5 @@ nameserver 1.1.1.1
 nameserver 8.8.8.8
 nameserver 9.9.9.9
 EOF
-
-# Enable firewall
-apt-get install -y ufw
-ufw default deny incoming
-ufw default allow outgoing
-ufw enable
 
 echo "Network configuration complete."

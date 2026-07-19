@@ -4,26 +4,27 @@
 
 ```
 CoolOS/
-├── config/                     # Build configuration
-│   ├── package-lists/          # Package lists for different components
+├── .github/workflows/    # GitHub Actions CI/CD
+│   └── build-iso.yml    # Automated ISO builder
+├── config/               # Build configuration
+│   ├── package-lists/   # Package lists for different components
 │   │   ├── base.list.chroot   # Base system packages
 │   │   ├── desktop.list.chroot # Desktop environment packages
 │   │   ├── apps.list.chroot   # Pre-installed applications
 │   │   ├── dev.list.chroot    # Development tools
 │   │   └── multimedia.list.chroot # Multimedia packages
-│   ├── hooks/                  # Build hooks
-│   │   ├── apt/               # APT configuration hooks
-│   │   └── live/              # Live system hooks
-│   ├── includes.chroot/       # Files to include in chroot
-│   └── bootloaders/          # Boot loader configurations
-├── scripts/                    # Build and utility scripts
-│   ├── build.sh               # Main build script
-│   ├── create-iso.sh          # ISO creation script
-│   ├── create-vm.sh           # VM creation script
-│   └── test-qemu.sh           # QEMU testing script
-├── docs/                       # Documentation
-├── iso/                        # ISO build directory
-└── output/                     # Built ISOs and VMs
+│   ├── hooks/           # Build hooks
+│   │   ├── apt/        # APT configuration hooks
+│   │   └── live/       # Live system hooks
+│   └── includes.chroot/ # System files
+├── scripts/              # Build and utility scripts
+│   ├── build.sh         # Main build script
+│   ├── create-iso.sh    # ISO creation script
+│   ├── create-vm.sh     # VM creation script
+│   └── test-qemu.sh     # QEMU testing script
+├── docs/                 # Documentation
+├── iso/                  # ISO build directory
+└── output/               # Built ISOs and VMs
 ```
 
 ## Default Credentials
@@ -31,16 +32,27 @@ CoolOS/
 - **Username:** coolos
 - **Password:** coolors
 
+## Download Pre-built ISO
+
+The easiest way to get CoolOS is to download the pre-built ISO from GitHub Releases:
+
+1. Go to [GitHub Releases](https://github.com/itriedcoding/CoolOS/releases)
+2. Download `CoolOS-1.0.0-amd64.iso`
+3. Verify the checksum:
+   ```bash
+   sha256sum -c SHA256SUMS
+   ```
+
 ## Build Requirements
 
 ### System Requirements
 
-- Debian/Ubuntu-based host system
+- Debian/Ubuntu-based host system (for building from source)
 - At least 8GB RAM
 - At least 20GB free disk space
 - Root access
 
-### Required Packages
+### Required Packages (for building from source)
 
 ```bash
 sudo apt install \
@@ -52,13 +64,16 @@ sudo apt install \
     grub-pc-bin \
     grub-efi-amd64-bin \
     mbr \
-    binutils \
-    qemu-system-x86
+    binutils
 ```
 
 ## Build Instructions
 
-### Quick Build
+### Using Pre-built ISO (Recommended)
+
+No building required! Just download from [Releases](https://github.com/itriedcoding/CoolOS/releases).
+
+### Building from Source
 
 ```bash
 # Clone the repository

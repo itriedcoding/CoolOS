@@ -27,14 +27,12 @@ strace
 e2fsprogs
 dosfstools
 ntfs-3g
-exfat-fuse
-exfat-utils
+exfatprogs
 
 # Hardware detection
 lshw
-lspci
+pciutils
 usbutils
-linux-perf
 
 # Boot loader
 grub-efi-amd64-bin
@@ -54,3 +52,15 @@ live-config-systemd
 xorriso
 mtools
 genisoimage
+
+# Kernel
+linux-image-amd64
+linux-headers-amd64
+
+# Init system
+systemd
+systemd-sysv
+dbus
+udev
+kmod
+procps

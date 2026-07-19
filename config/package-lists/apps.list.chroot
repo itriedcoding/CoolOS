@@ -13,7 +13,6 @@ libreoffice-impress
 # Media Players
 vlc
 mpv
-rhythmbox
 
 # Image Editing
 gimp
@@ -22,14 +21,10 @@ inkscape
 
 # Code Editor
 geany
-vscode
 
 # System Monitor
 gnome-system-monitor
-bashtop
-
-# Archive Manager
-file-roller
+baobab
 
 # PDF Viewer
 evince
@@ -37,27 +32,21 @@ evince
 # Calculator
 galculator
 
-# Text Editor
-mousepad
-xed
+# Archive Manager
+file-roller
 
 # Disk Usage
 ncdu
-baobab
 
 # Network
 network-manager
 network-manager-gnome
-nm-tray
-curl
-wget
 
 # Bluetooth
 blueman
 
 # Printing
 cups
-cups-client
 system-config-printer
 
 # Archive

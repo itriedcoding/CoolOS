@@ -4,18 +4,12 @@ set -e
 # CoolOS APT Configuration
 echo "Configuring APT..."
 
-# Enable universe repository
-add-apt-repository -y universe
-add-apt-repository -y multiverse
+# Enable non-free repositories
+sed -i 's/^#deb http:\/\/deb.debian.org\/debian bookworm main/deb http:\/\/deb.debian.org\/debian bookworm main contrib non-free non-free-firmware/' /etc/apt/sources.list
+sed -i 's/^#deb http:\/\/deb.debian.org\/debian bookworm-updates main/deb http:\/\/deb.debian.org\/debian bookworm-updates main contrib non-free non-free-firmware/' /etc/apt/sources.list
+sed -i 's/^#deb http:\/\/security.debian.org\/debian-security bookworm-security main/deb http:\/\/security.debian.org\/debian-security bookworm-security main contrib non-free non-free-firmware/' /etc/apt/sources.list
 
 # Update package lists
 apt-get update
-
-# Upgrade installed packages
-apt-get upgrade -y
-
-# Clean up
-apt-get clean
-rm -rf /var/lib/apt/lists/*
 
 echo "APT configuration complete."
