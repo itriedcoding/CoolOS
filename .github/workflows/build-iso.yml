@@ -65,12 +65,12 @@ jobs:
             openbox tint2 rofi pcmanfm thunar lxterminal \
             lightdm lightdm-gtk-greeter picom dunst nitrogen lxappearance \
             arc-theme papirus-icon-theme \
-            fonts-noto fonts-firacode fonts-dejavu fonts-liberation \
+            fonts-firacode fonts-dejavu fonts-liberation \
             xorg xserver-xorg xinit x11-xserver-utils xterm dbus-x11 \
             firefox-esr \
-            vlc evince galculator file-roller \
+            vlc galculator file-roller \
             network-manager network-manager-gnome \
-            baobab ncdu ufw \
+            ncdu ufw \
             pulseaudio pavucontrol \
             python3 curl wget vim-tiny nano \
             htop tmux tree zip unzip \
@@ -108,8 +108,16 @@ jobs:
         '
         
         # --- 3. Create squashfs ---
+        # Clean up before squashfs
+        rm -rf "$ROOTFS"/var/cache/apt/archives/*.deb
+        rm -rf "$ROOTFS"/var/lib/apt/lists/*
+        rm -rf "$ROOTFS"/usr/share/doc/*
+        rm -rf "$ROOTFS"/usr/share/man/*
+        rm -rf "$ROOTFS"/usr/share/info/*
+        rm -rf "$ROOTFS"/usr/share/locale/!(en|en_US)
+        rm -rf "$ROOTFS"/usr/share/i18n/!(locales|charmaps)
         mkdir -p "$SQUASH"
-        mksquashfs "$ROOTFS" "$SQUASH/filesystem.squashfs" -comp xz -e boot
+        mksquashfs "$ROOTFS" "$SQUASH/filesystem.squashfs" -comp xz -Xbcj x86 -b 1M -e boot
         
         # --- 4. Assemble image directory ---
         mkdir -p "$IMAGE/boot/grub/x86_64-efi"
