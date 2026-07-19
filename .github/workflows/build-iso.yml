@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 env:
-  COOLOS_VERSION: "1.1.0"
+  COOLOS_VERSION: "1.2.0"
 
 jobs:
   build:
@@ -25,115 +25,97 @@ jobs:
           debootstrap squashfs-tools xorriso mtools dosfstools \
           grub-efi-amd64-bin grub-efi-amd64-signed shim-signed \
           mbr binutils isolinux syslinux-common syslinux \
-          live-build ovmf
+          cpio genisoimage live-build ovmf
 
-    - name: Create build script
+    - name: Build ISO with live-build
       run: |
-        cat > /tmp/build-coolos.sh << 'BUILDEOF'
-        #!/bin/bash
         set -ex
         
         BUILD=/coolos-build
-        ISO=$BUILD/iso
-        OUTPUT=$BUILD/output
-        CHROOT=$BUILD/chroot
-        
         rm -rf $BUILD
-        mkdir -p $CHROOT $ISO/{live,boot/grub,boot/grub/x86_64-efi,EFI/BOOT,BOOT,isolinux} $OUTPUT
+        mkdir -p $BUILD && cd $BUILD
         
-        # Bootstrap
-        debootstrap --arch=amd64 --variant=minbase \
-          --include=apt-transport-https,ca-certificates,curl,wget,gnupg,systemd,systemd-sysv,dbus,udev,kmod,procps,locales,sudo \
-          bookworm $CHROOT http://deb.debian.org/debian/
+        # Initialize live-build config
+        lb config \
+          --architectures amd64 \
+          --distribution bookworm \
+          --archive-areas "main contrib non-free non-free-firmware" \
+          --bootloaders "grub-efi,syslinux" \
+          --binary-images iso-hybrid \
+          --debian-installer none \
+          --memtest none \
+          --iso-application "CoolOS" \
+          --iso-publisher "CoolOS" \
+          --iso-volume "CoolOS 1.2.0" \
+          --bootappend-live "boot=live quiet splash"
         
-        # APT sources
-        cat > $CHROOT/etc/apt/sources.list << 'EOF'
-        deb http://deb.debian.org/debian/ bookworm main contrib non-free non-free-firmware
-        deb http://deb.debian.org/debian/ bookworm-updates main contrib non-free non-free-firmware
-        deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
+        # Package lists
+        mkdir -p config/package-lists
+        
+        cat > config/package-lists/coolors.list.chroot << 'EOF'
+        # Kernel
+        linux-image-amd64
+        
+        # Core
+        systemd systemd-sysv dbus udev kmod procps locales sudo
+        
+        # Desktop
+        openbox tint2 rofi pcmanfm thunar lxterminal
+        lightdm lightdm-gtk-greeter
+        picom dunst nitrogen lxappearance
+        arc-theme papirus-icon-theme
+        fonts-noto fonts-noto-color-emoji fonts-firacode fonts-dejavu fonts-liberation
+        xorg xserver-xorg xinit x11-xserver-utils xterm dbus-x11
+        
+        # Apps
+        firefox-esr
+        libreoffice-writer libreoffice-calc libreoffice-impress
+        vlc mpv gimp inkscape geany evince galculator file-roller
+        network-manager network-manager-gnome
+        gnome-system-monitor baobab ncdu ufw
+        pulseaudio pavucontrol
+        
+        # Dev
+        build-essential git python3 curl wget vim-tiny nano
+        htop tmux tree zip unzip p7zip-full
+        
+        # Live system
+        live-boot live-config live-config-systemd
         EOF
         
-        # Mount
-        mount --bind /dev $CHROOT/dev
-        mount --bind /dev/pts $CHROOT/dev/pts
-        mount -t proc proc $CHROOT/proc
-        mount -t sysfs sysfs $CHROOT/sys
-        cp /etc/resolv.conf $CHROOT/etc/resolv.conf
+        # Hooks
+        mkdir -p config/hooks/live
         
-        # Install packages
-        chroot $CHROOT /bin/bash << 'CHROOTPKG'
-          set -e
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          
-          # Kernel and core
-          apt-get install -y --no-install-recommends \
-            linux-image-amd64 systemd systemd-sysv dbus udev kmod procps locales sudo \
-            console-setup keyboard-configuration
-          
-          # Desktop
-          apt-get install -y --no-install-recommends \
-            openbox tint2 rofi pcmanfm thunar lxterminal lightdm \
-            lightdm-gtk-greeter picom dunst nitrogen lxappearance \
-            arc-theme papirus-icon-theme \
-            fonts-noto fonts-noto-color-emoji fonts-firacode fonts-dejavu fonts-liberation \
-            xorg xserver-xorg xinit x11-xserver-utils xterm \
-            dbus-x11
-          
-          # Apps
-          apt-get install -y --no-install-recommends \
-            firefox-esr libreoffice-writer libreoffice-calc libreoffice-impress \
-            vlc mpv gimp inkscape geany evince galculator file-roller \
-            network-manager network-manager-gnome \
-            gnome-system-monitor baobab ncdu ufw \
-            pulseaudio pavucontrol
-          
-          # Dev tools
-          apt-get install -y --no-install-recommends \
-            build-essential git python3 python3-pip curl wget vim-tiny nano \
-            htop tmux tree zip unzip p7zip-full
-          
-          # Live system
-          apt-get install -y --no-install-recommends \
-            live-boot live-config live-config-systemd
-          
-          # Installer (Calamares) - skip if not available
-          apt-get install -y calamares calamares-settings-debian 2>/dev/null || echo "Calamares not available"
-          
-          # Boot loaders
-          apt-get install -y --no-install-recommends \
-            grub-efi-amd64-bin grub-pc-bin grub2-common grub-common \
-            syslinux syslinux-common isolinux xorriso mtools
-          
-          apt-get clean
-          rm -rf /var/lib/apt/lists/*
-        CHROOTPKG
+        # User setup hook
+        cat > config/hooks/live/0100-users.chroot << 'HOOKEOF'
+        #!/bin/sh
+        set -e
+        echo "CoolOS" > /etc/hostname
+        echo "127.0.0.1 localhost CoolOS" > /etc/hosts
+        echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+        locale-gen
+        update-locale LANG=en_US.UTF-8
+        ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+        useradd -m -s /bin/bash -G sudo,audio,video,plugdev,netdev coolos || true
+        echo "coolos:coolors" | chpasswd
+        echo "root:coolors" | chpasswd
+        echo "coolos ALL=(ALL) ALL" > /etc/sudoers.d/coolos
+        chmod 440 /etc/sudoers.d/coolos
+        systemctl enable NetworkManager 2>/dev/null || true
+        HOOKEOF
+        chmod +x config/hooks/live/0100-users.chroot
         
-        # System config
-        chroot $CHROOT /bin/bash << 'CHROOTCFG'
-          set -e
-          echo "CoolOS" > /etc/hostname
-          echo "127.0.0.1 localhost CoolOS" > /etc/hosts
-          echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
-          locale-gen
-          update-locale LANG=en_US.UTF-8
-          ln -sf /usr/share/zoneinfo/UTC /etc/localtime
-          useradd -m -s /bin/bash -G sudo,audio,video,plugdev,netdev coolos || true
-          echo "coolos:coolors" | chpasswd
-          echo "root:coolors" | chpasswd
-          echo "coolos ALL=(ALL) ALL" > /etc/sudoers.d/coolos
-          chmod 440 /etc/sudoers.d/coolos
-          systemctl enable NetworkManager 2>/dev/null || true
-          systemctl set-default graphical.target 2>/dev/null || true
-        CHROOTCFG
+        # Desktop config hook
+        cat > config/hooks/live/0200-desktop.chroot << 'HOOKEOF'
+        #!/bin/sh
+        set -e
         
-        # Desktop config
-        mkdir -p $CHROOT/etc/xdg/openbox
-        mkdir -p $CHROOT/etc/skel/.config/{openbox,tint2}
-        mkdir -p $CHROOT/etc/lightdm/lightdm.conf.d
+        mkdir -p /etc/xdg/openbox
+        mkdir -p /etc/skel/.config/{openbox,tint2}
+        mkdir -p /etc/lightdm/lightdm.conf.d
         
         # Autostart
-        cat > $CHROOT/etc/xdg/openbox/autostart << 'AUTOSTART'
+        cat > /etc/xdg/openbox/autostart << 'AUTOSTART'
         #!/bin/sh
         nitrogen --restore &
         tint2 &
@@ -143,10 +125,10 @@ jobs:
         xset r rate 300 50
         xsetroot -cursor_name left_ptr
         AUTOSTART
-        chmod +x $CHROOT/etc/xdg/openbox/autostart
+        chmod +x /etc/xdg/openbox/autostart
         
         # LightDM
-        cat > $CHROOT/etc/lightdm/lightdm.conf.d/50-coolos.conf << 'LDM'
+        cat > /etc/lightdm/lightdm.conf.d/50-coolos.conf << 'LDM'
         [Seat:*]
         autologin-user=coolos
         autologin-user-timeout=0
@@ -154,139 +136,43 @@ jobs:
         greeter-session=lightdm-gtk-greeter
         LDM
         
-        # Copy configs
-        cp config/includes.chroot/etc/xdg/openbox/menu.xml $CHROOT/etc/xdg/openbox/ 2>/dev/null || true
-        cp config/includes.chroot/etc/xdg/openbox/rc.xml $CHROOT/etc/xdg/openbox/ 2>/dev/null || true
-        cp config/includes.chroot/etc/skel/.bashrc $CHROOT/etc/skel/ 2>/dev/null || true
-        cp config/includes.chroot/etc/skel/.vimrc $CHROOT/etc/skel/ 2>/dev/null || true
-        cp config/includes.chroot/etc/skel/.config/tint2/tint2rc $CHROOT/etc/skel/.config/tint2/ 2>/dev/null || true
+        # Copy configs to skel
+        cp /etc/xdg/openbox/autostart /etc/skel/.config/openbox/ 2>/dev/null || true
         
         # Copy to user
-        mkdir -p $CHROOT/home/coolos/.config/{openbox,tint2}
-        cp $CHROOT/etc/xdg/openbox/autostart $CHROOT/home/coolos/.config/openbox/
-        cp $CHROOT/etc/xdg/openbox/menu.xml $CHROOT/home/coolos/.config/openbox/ 2>/dev/null || true
-        cp $CHROOT/etc/xdg/openbox/rc.xml $CHROOT/home/coolos/.config/openbox/ 2>/dev/null || true
-        chown -R 1000:1000 $CHROOT/home/coolos
+        mkdir -p /home/coolos/.config/{openbox,tint2}
+        cp /etc/xdg/openbox/autostart /home/coolos/.config/openbox/
+        chown -R 1000:1000 /home/coolos
+        HOOKEOF
+        chmod +x config/hooks/live/0200-desktop.chroot
         
-        # Unmount
-        umount $CHROOT/dev/pts 2>/dev/null || true
-        umount $CHROOT/dev 2>/dev/null || true
-        umount $CHROOT/proc 2>/dev/null || true
-        umount $CHROOT/sys 2>/dev/null || true
+        # Build
+        sudo lb build 2>&1 | tail -50
         
-        # SquashFS
-        mksquashfs $CHROOT $ISO/live/filesystem.squashfs -comp xz -b 1M -noappend -e boot
+        # Find the ISO
+        ISO_FILE=$(ls -1 *.iso 2>/dev/null | head -n1)
+        if [ -z "$ISO_FILE" ]; then
+          echo "ERROR: No ISO found!"
+          ls -la
+          exit 1
+        fi
         
-        # Kernel
-        KERNEL=$(ls $CHROOT/boot/vmlinuz-* | head -n1)
-        INITRD=$(ls $CHROOT/boot/initrd.img-* | head -n1)
-        cp "$KERNEL" $ISO/live/vmlinuz
-        cp "$INITRD" $ISO/live/initrd
+        echo "ISO built: $ISO_FILE"
+        ls -lh "$ISO_FILE"
         
-        # BIOS Boot
-        cp /usr/lib/ISOLINUX/isolinux.bin $ISO/isolinux/ 2>/dev/null || \
-          cp /usr/share/syslinux/isolinux.bin $ISO/isolinux/ 2>/dev/null || true
-        cp /usr/lib/ISOLINUX/isohdpfx.bin $ISO/isolinux/ 2>/dev/null || \
-          cp /usr/share/syslinux/isohdpfx.bin $ISO/isolinux/ 2>/dev/null || true
-        cp /usr/share/syslinux/menu.c32 $ISO/isolinux/ 2>/dev/null || true
-        cp /usr/share/syslinux/ldlinux.c32 $ISO/isolinux/ 2>/dev/null || true
-        cp /usr/share/syslinux/libcom32.c32 $ISO/isolinux/ 2>/dev/null || true
-        cp /usr/share/syslinux/libutil.c32 $ISO/isolinux/ 2>/dev/null || true
-        
-        cat > $ISO/isolinux/isolinux.cfg << 'ISOlinux'
-        UI menu.c32
-        MENU TITLE CoolOS Boot Menu
-        MENU TIMEOUT 50
-        DEFAULT coolos
-        
-        LABEL coolos
-            MENU LABEL CoolOS Live
-            MENU DEFAULT
-            KERNEL /live/vmlinuz
-            APPEND initrd=/live/initrd boot=live quiet splash
-        
-        LABEL safe
-            MENU LABEL CoolOS Live (Safe Mode)
-            KERNEL /live/vmlinuz
-            APPEND initrd=/live/initrd boot=live quiet splash nomodeset
-        
-        LABEL install
-            MENU LABEL CoolOS Install
-            KERNEL /live/vmlinuz
-            APPEND initrd=/live/initrd boot=live quiet splash components
-        ISOlinux
-        
-        # EFI Boot
-        cat > $ISO/boot/grub/grub.cfg << 'GRUBCFG'
-        set timeout=5
-        set default=0
-        insmod all_video
-        
-        menuentry "CoolOS Live" {
-            linux /live/vmlinuz boot=live quiet splash
-            initrd /live/initrd
-        }
-        
-        menuentry "CoolOS Live (Safe Mode)" {
-            linux /live/vmlinuz boot=live quiet splash nomodeset
-            initrd /live/initrd
-        }
-        
-        menuentry "CoolOS Install" {
-            linux /live/vmlinuz boot=live quiet splash components
-            initrd /live/initrd
-        }
-        GRUBCFG
-        
-        # Create GRUB EFI
-        grub-mkimage \
-          --directory=/usr/lib/grub/x86_64-efi \
-          --output=$ISO/BOOT/GRUBX64.EFI \
-          --format=x86_64-efi \
-          --prefix='(cd)/boot/grub' \
-          fat part_gpt part_msdos iso9660 normal boot linux configfile \
-          search search_fs_uuid search_label terminal gfxterm \
-          all_video loadenv exfat ext2 ntfs
-        
-        mkdir -p $ISO/EFI/BOOT
-        cp $ISO/BOOT/GRUBX64.EFI $ISO/EFI/BOOT/BOOTX64.EFI
-        
-        mkdir -p $ISO/boot/grub/x86_64-efi
-        cp /usr/lib/grub/x86_64-efi/*.mod $ISO/boot/grub/x86_64-efi/ 2>/dev/null || true
-        cp /usr/lib/grub/x86_64-efi/*.lst $ISO/boot/grub/x86_64-efi/ 2>/dev/null || true
-        
-        # Build ISO
-        xorriso -as mkisofs \
-          -o $OUTPUT/CoolOS-1.1.0-amd64.iso \
-          -isohybrid-mbr $ISO/isolinux/isohdpfx.bin \
-          -c isolinux/boot.cat \
-          -b isolinux/isolinux.bin \
-          -no-emul-boot \
-          -boot-load-size 4 \
-          -boot-info-table \
-          -eltorito-alt-boot \
-          -e BOOT/GRUBX64.EFI \
-          -no-emul-boot \
-          -isohybrid-gpt-basdat \
-          -V "CoolOS" \
-          -R -J \
-          $ISO
-        
-        cd $OUTPUT
+        # Move to output
+        mkdir -p /coolos-build/output
+        mv "$ISO_FILE" /coolos-build/output/
+        cd /coolos-build/output
         sha256sum *.iso > SHA256SUMS
+        cat SHA256SUMS
         
         echo "BUILD COMPLETE"
-        ls -lh $OUTPUT/
-        BUILDEOF
-        chmod +x /tmp/build-coolos.sh
-
-    - name: Run build
-      run: sudo /tmp/build-coolos.sh
 
     - name: Upload ISO
       uses: actions/upload-artifact@v4
       with:
-        name: CoolOS-1.1.0-amd64
+        name: CoolOS-1.2.0-amd64
         path: /coolos-build/output/*.iso
         retention-days: 30
 
@@ -307,7 +193,7 @@ jobs:
     - name: Download ISO
       uses: actions/download-artifact@v4
       with:
-        name: CoolOS-1.1.0-amd64
+        name: CoolOS-1.2.0-amd64
 
     - name: Download checksums
       uses: actions/download-artifact@v4
@@ -317,29 +203,48 @@ jobs:
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
-        name: CoolOS 1.1.0
+        name: CoolOS 1.2.0
         body: |
-          ## CoolOS 1.1.0
+          ## CoolOS 1.2.0
           
           A lightweight Linux distribution built for speed and simplicity.
           
           **Default Credentials:** coolos / coolors
           
-          ### What's New
-          - Fixed UEFI boot for Hyper-V, VMware, VirtualBox
-          - Added Xorg display server
-          - Added PulseAudio for sound
-          - Better package selection
+          ### Fixes
+          - Rebuilt ISO using Debian live-build for proper UEFI/BIOS boot
+          - Fixed Hyper-V boot (disable Secure Boot in VM settings)
+          - Fixed VMware/VirtualBox boot
+          - Proper El Torito boot images for both BIOS and UEFI
           
-          ### Boot Options
-          - UEFI + BIOS support
-          - Works with Hyper-V, VMware, VirtualBox, QEMU
+          ### Boot Instructions
+          
+          **Hyper-V:**
+          1. Create Generation 2 VM
+          2. Set 2048MB+ RAM
+          3. Disable Secure Boot (Settings > Security)
+          4. Attach ISO to DVD drive
+          5. Set DVD as first boot device
+          6. Start VM
+          
+          **VirtualBox:**
+          1. Create Linux > Debian (64-bit) VM
+          2. Set 2048MB+ RAM
+          3. Attach ISO to optical drive
+          4. Start VM
+          
+          **VMware:**
+          1. Create Linux > Debian 12.x 64-bit VM
+          2. Set 2048MB+ RAM
+          3. Attach ISO
+          4. Power on
           
           ### Features
           - Debian Bookworm base
           - Openbox window manager
           - Pre-installed apps (Firefox, LibreOffice, GIMP, VLC, etc.)
           - NetworkManager, UFW firewall
+          - PulseAudio sound
           
           ### Verify
           ```bash
