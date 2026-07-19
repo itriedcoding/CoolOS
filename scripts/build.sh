@@ -31,7 +31,7 @@ apt-get install -y \
 
 # Clean
 rm -rf $BUILD
-mkdir -p $CHROOT $ISO/{live,boot/grub,boot/grub/x86_64-efi,EFI/BOOT,isolinux} $OUTPUT
+mkdir -p $CHROOT $ISO/{live,boot/grub,boot/grub/x86_64-efi,EFI/BOOT,BOOT,isolinux} $OUTPUT
 
 # === Bootstrap ===
 echo "[*] Bootstrapping Debian Bookworm..."
