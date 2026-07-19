@@ -1,0 +1,65 @@
+# CoolOS Applications
+# Pre-installed applications
+
+# Web Browser
+firefox-esr
+chromium
+
+# Office
+libreoffice-writer
+libreoffice-calc
+libreoffice-impress
+
+# Media Players
+vlc
+mpv
+rhythmbox
+
+# Image Editing
+gimp
+gimp-data
+inkscape
+
+# Code Editor
+geany
+vscode
+
+# System Monitor
+gnome-system-monitor
+bashtop
+
+# Archive Manager
+file-roller
+
+# PDF Viewer
+evince
+
+# Calculator
+galculator
+
+# Text Editor
+mousepad
+xed
+
+# Disk Usage
+ncdu
+baobab
+
+# Network
+network-manager
+network-manager-gnome
+nm-tray
+curl
+wget
+
+# Bluetooth
+blueman
+
+# Printing
+cups
+cups-client
+system-config-printer
+
+# Archive
+p7zip-full
+unrar

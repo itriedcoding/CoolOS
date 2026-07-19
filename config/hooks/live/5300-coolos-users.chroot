@@ -1,0 +1,31 @@
+#!/bin/sh
+set -e
+
+# CoolOS User Configuration
+echo "Configuring CoolOS users..."
+
+# Set root password
+echo "root:coolors" | chpasswd
+
+# Create default user
+useradd -m -s /bin/bash -G sudo,audio,video,plugdev,netdev,bluetooth coolos
+echo "coolos:coolors" | chpasswd
+
+# Configure sudo for coolos user
+echo "coolos ALL=(ALL) ALL" > /etc/sudoers.d/coolos
+chmod 440 /etc/sudoers.d/coolos
+
+# Set hostname
+echo "CoolOS" > /etc/hostname
+echo "127.0.0.1 localhost CoolOS" > /etc/hosts
+
+# Auto login for live system
+mkdir -p /etc/lightdm/lightdm.conf.d
+cat > /etc/lightdm/lightdm.conf.d/50-coolos.conf << 'EOF'
+[Seat:*]
+autologin-user=coolos
+autologin-user-timeout=0
+user-session=openbox
+EOF
+
+echo "User configuration complete."

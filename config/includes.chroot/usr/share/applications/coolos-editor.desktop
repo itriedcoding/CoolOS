@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=CoolOS Text Editor
+Comment=Edit text files
+Exec=geany %F
+Icon=accessories-text-editor
+Terminal=false
+Categories=Development;TextEditor;
+Keywords=text;editor;code;programming;
+StartupNotify=true
+MimeType=text/plain;text/x-python;text/x-c;text/x-java;

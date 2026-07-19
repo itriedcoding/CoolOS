@@ -1,0 +1,44 @@
+# CoolOS Multimedia
+# Media creation and editing
+
+# Audio Production
+ardour
+audacity
+lmms
+hydrogen
+
+# Video Production
+kdenlive
+shotcut
+obs-studio
+
+# Graphics
+gimp
+inkscape
+imagemagick
+darktable
+rawtherapee
+
+# 3D Modeling
+blender
+
+# Screen Recording
+obs-studio
+simple-screen-recorder
+
+# Audio Players
+rhythmbox
+cmus
+audacious
+
+# Video Players
+vlc
+mpv
+smplayer
+
+# Codecs
+ubuntu-restricted-extras
+gstreamer1.0-plugins-bad
+gstreamer1.0-plugins-ugly
+gstreamer1.0-libav
+ffmpeg

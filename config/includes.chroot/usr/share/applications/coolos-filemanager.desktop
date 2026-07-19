@@ -1,0 +1,16 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=CoolOS File Manager
+Comment=Browse and manage files
+Exec=pcmanfm
+Icon=system-file-manager
+Terminal=false
+Categories=System;FileManager;
+Keywords=file;manager;explorer;browser;
+StartupNotify=true
+Actions=here;
+
+[Desktop Action here]
+Name=Open Current Directory
+Exec=pcmanfm %f

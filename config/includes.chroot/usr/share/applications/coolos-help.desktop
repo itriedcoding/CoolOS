@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=CoolOS Help
+Comment=Open CoolOS documentation
+Exec=xdg-open https://github.com/itriedcoding/CoolOS
+Icon=help-browser
+Terminal=false
+Categories=System;Help;
+Keywords=help;documentation;support;
+StartupNotify=true

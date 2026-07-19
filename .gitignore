@@ -1,0 +1,152 @@
+# CoolOS .gitignore
+
+# Build directories
+build/
+cache/
+iso/
+
+# Output files
+output/
+*.iso
+*.img
+*.qcow2
+*.vdi
+*.vmdk
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+logs/
+
+# Package files
+*.deb
+*.rpm
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.zip
+*.rar
+
+# VM files
+*.vmx
+*.vmxf
+*.vmsd
+*.vmsn
+*.vmss
+*.vmem
+*.vmstat
+
+# QEMU files
+*.qcow
+*.qcow2.lock
+
+# VirtualBox files
+*.vbox
+*.vbox-tmp
+
+# Proxmox files
+*.conf.bak
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# Core dumps
+core
+core.*
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Kernel modules
+*.ko
+*.ko.cmd
+*.mod
+*.mod.c
+*.mod.cmd
+modules.order
+Module.symvers
+
+# Headers
+*.h.gch
+*.h.gch.d
+
+# Object files
+*.o
+*.o.d
+*.obj
+
+# Libraries
+*.a
+*.la
+*.lo
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+*.elf
+
+# Dependencies
+*.d
+*.dep
+
+# Generated files
+*.gen
+*.generated.*
+
+# Local configuration
+.env
+.env.local
+.env.*.local
+
+# Cache
+.cache/
+*.cache
+
+# Documentation build
+docs/_build/
+docs/html/
+docs/pdf/
+
+# Coverage
+coverage/
+*.gcov
+*.gcda
+*.gcno
+
+# Profiling
+*.prof
+*.profraw
+*.profdata
+
+# Misc
+*.pyc
+*.pyo
+__pycache__/
+*.class
+*.jar
+*.war

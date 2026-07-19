@@ -1,0 +1,60 @@
+# CoolOS Development Tools
+# Programming and development
+
+# Build tools
+build-essential
+gcc
+g++
+make
+cmake
+git
+subversion
+mercurial
+
+# Languages
+python3
+python3-pip
+python3-venv
+nodejs
+npm
+
+# Editors
+geany
+code
+
+# Version control
+git
+git-gui
+gitk
+
+# Debugging
+gdb
+strace
+ltrace
+
+# Documentation
+devhelp
+man-db
+info
+
+# Compression
+zip
+unzip
+p7zip-full
+rar
+unrar
+
+# Networking
+net-tools
+nmap
+wireshark
+tcpdump
+
+# Containers
+docker.io
+docker-compose
+
+# Virtualization
+virt-manager
+qemu-kvm
+libvirt-daemon-system

@@ -1,0 +1,300 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<openbox_config xmlns="http://openbox.org/3.4/rc">
+  <resistance>
+    <strength>10</strength>
+    <screen_edge_strength>20</screen_edge_strength>
+  </resistance>
+  <focus>
+    <focusNew>yes</focusNew>
+    <followMouse>no</followMouse>
+    <focusLast>yes</focusLast>
+    <underMouse>no</underMouse>
+    <focusDelay>200</focusDelay>
+    <raiseOnFocus>no</raiseOnFocus>
+  </focus>
+  <placement>
+    <policy>Smart</policy>
+    <center>yes</center>
+    <monitor>Primary</monitor>
+    <primaryMonitor>1</primaryMonitor>
+  </placement>
+  <desktops>
+    <number>4</number>
+    <firstdesk>1</firstdesk>
+    <names>
+      <name>Desktop</name>
+      <name>Work</name>
+      <name>Media</name>
+      <name>System</name>
+    </names>
+  </desktops>
+  <theme>
+    <name>Arc-Dark</name>
+    <titleLayout>NLIMC</titleLayout>
+    <keepBorder>yes</keepBorder>
+    <animateIconify>yes</animateIconify>
+    <font place="ActiveWindow">
+      <name>Noto Sans</name>
+      <size>10</size>
+      <weight>Bold</weight>
+      <slant>Normal</slant>
+    </font>
+    <font place="InactiveWindow">
+      <name>Noto Sans</name>
+      <size>10</size>
+      <weight>Bold</weight>
+      <slant>Normal</slant>
+    </font>
+    <font place="MenuHeader">
+      <name>Noto Sans</name>
+      <size>10</size>
+      <weight>Bold</weight>
+      <slant>Normal</slant>
+    </font>
+    <font place="MenuItem">
+      <name>Noto Sans</name>
+      <size>10</size>
+      <weight>Normal</weight>
+      <slant>Normal</slant>
+    </font>
+  </theme>
+  <applications>
+    <!-- File Manager -->
+    <application class="Pcmanfm" type="normal">
+      <title>File Manager</title>
+      <position force="no">
+        <x>center</x>
+        <y>center</y>
+      </position>
+      <size>
+        <width>80%</width>
+        <height>80%</height>
+      </size>
+    </application>
+    
+    <!-- Terminal -->
+    <application class="Lxterminal" type="normal">
+      <title>Terminal</title>
+      <position force="no">
+        <x>center</x>
+        <y>center</y>
+      </position>
+      <size>
+        <width>80%</width>
+        <height>80%</height>
+      </size>
+    </application>
+    
+    <!-- Text Editor -->
+    <application class="Geany" type="normal">
+      <title>Text Editor</title>
+      <position force="no">
+        <x>center</x>
+        <y>center</y>
+      </position>
+      <size>
+        <width>80%</width>
+        <height>80%</height>
+      </size>
+    </application>
+    
+    <!-- Web Browser -->
+    <application class="Firefox" type="normal">
+      <title>Web Browser</title>
+      <position force="no">
+        <x>center</x>
+        <y>center</y>
+      </position>
+      <size>
+        <width>90%</width>
+        <height>90%</height>
+      </size>
+    </application>
+    
+    <!-- System Monitor -->
+    <application class="Gnome-system-monitor" type="normal">
+      <title>System Monitor</title>
+      <position force="no">
+        <x>center</x>
+        <y>center</y>
+      </position>
+      <size>
+        <width>80%</width>
+        <height>80%</height>
+      </size>
+    </application>
+  </applications>
+  <keyboard>
+    <!-- Window Management -->
+    <keybind key="A-F4">
+      <action name="Close"/>
+    </keybind>
+    <keybind key="A-Tab">
+      <action name="NextWindow">
+        <finalactions>
+          <action name="Focus"/>
+          <action name="Raise"/>
+          <action name="Unshade"/>
+        </finalactions>
+      </action>
+    </keybind>
+    <keybind key="A-S-Tab">
+      <action name="PreviousWindow">
+        <finalactions>
+          <action name="Focus"/>
+          <action name="Raise"/>
+          <action name="Unshade"/>
+        </finalactions>
+      </action>
+    </keybind>
+    
+    <!-- Window Placement -->
+    <keybind key="A-Down">
+      <action name="Unmaximize"/>
+      <action name="MoveResizeTo">
+        <x>0</x>
+        <y>0</y>
+        <width>50%</width>
+        <height>100%</height>
+      </action>
+    </keybind>
+    <keybind key="A-Up">
+      <action name="Unmaximize"/>
+      <action name="MoveResizeTo">
+        <x>50%</x>
+        <y>0</y>
+        <width>50%</width>
+        <height>100%</height>
+      </action>
+    </keybind>
+    <keybind key="A-Left">
+      <action name="Unmaximize"/>
+      <action name="MoveResizeTo">
+        <x>0</x>
+        <y>0</y>
+        <width>100%</width>
+        <height>50%</height>
+      </action>
+    </keybind>
+    <keybind key="A-Right">
+      <action name="Unmaximize"/>
+      <action name="MoveResizeTo">
+        <x>0</x>
+        <y>50%</y>
+        <width>100%</width>
+        <height>50%</height>
+      </action>
+    </keybind>
+    
+    <!-- Window Actions -->
+    <keybind key="A-F9">
+      <action name="Iconify"/>
+    </keybind>
+    <keybind key="A-F10">
+      <action name="ToggleMaximize"/>
+    </keybind>
+    <keybind key="A-F11">
+      <action name="ToggleFullscreen"/>
+    </keybind>
+    <keybind key="A-F12">
+      <action name="ToggleDecorations"/>
+    </keybind>
+    
+    <!-- Desktop Actions -->
+    <keybind key="C-A-Right">
+      <action name="NextDesktop"/>
+    </keybind>
+    <keybind key="C-A-Left">
+      <action name="PreviousDesktop"/>
+    </keybind>
+    
+    <!-- Application Launchers -->
+    <keybind key="A-Return">
+      <action name="Execute">
+        <command>lxterminal</command>
+      </action>
+    </keybind>
+    <keybind key="A-F2">
+      <action name="Execute">
+        <command>rofi -show run</command>
+      </action>
+    </keybind>
+    <keybind key="A-F3">
+      <action name="Execute">
+        <command>rofi -show drun</command>
+      </action>
+    </keybind>
+    
+    <!-- Screenshot -->
+    <keybind key="Print">
+      <action name="Execute">
+        <command>scrot -d 3</command>
+      </action>
+    </keybind>
+    <keybind key="S-Print">
+      <action name="Execute">
+        <command>scrot -s</command>
+      </action>
+    </keybind>
+  </keyboard>
+  <mouse>
+    <!-- Window Actions -->
+    <context name="Frame">
+      <mousebind button="A-Left" action="Press">
+        <action name="Focus"/>
+        <action name="Raise"/>
+      </mousebind>
+      <mousebind button="A-Left" action="Drag">
+        <action name="Move"/>
+      </mousebind>
+      <mousebind button="A-Left" action="DoubleClick">
+        <action name="ToggleMaximize"/>
+      </mousebind>
+      <mousebind button="A-Right" action="Press">
+        <action name="Focus"/>
+        <action name="Raise"/>
+      </mousebind>
+      <mousebind button="A-Right" action="Drag">
+        <action name="Resize"/>
+      </mousebind>
+    </context>
+    
+    <!-- Titlebar Actions -->
+    <context name="Titlebar">
+      <mousebind button="Left" action="Press">
+        <action name="Focus"/>
+        <action name="Raise"/>
+      </mousebind>
+      <mousebind button="Left" action="Drag">
+        <action name="Move"/>
+      </mousebind>
+      <mousebind button="Left" action="DoubleClick">
+        <action name="ToggleMaximize"/>
+      </mousebind>
+    </context>
+    
+    <!-- Desktop Actions -->
+    <context name="Root">
+      <mousebind button="Up" action="Press">
+        <action name="PreviousDesktop"/>
+      </mousebind>
+      <mousebind button="Down" action="Press">
+        <action name="NextDesktop"/>
+      </mousebind>
+      <mousebind button="Left" action="Press">
+        <action name="PreviousDesktop"/>
+      </mousebind>
+      <mousebind button="Right" action="Press">
+        <action name="NextDesktop"/>
+      </mousebind>
+    </context>
+  </mouse>
+  <menu>
+    <showIcons>yes</showIcons>
+    <middle>no</middle>
+    <submenuShowIcons>yes</submenuShowIcons>
+    <hideDelay>200</hideDelay>
+    <middle>no</middle>
+    <submenuMiddle>no</submenuMiddle>
+  </menu>
+</openbox_config>

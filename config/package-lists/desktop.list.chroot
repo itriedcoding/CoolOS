@@ -1,0 +1,68 @@
+# CoolOS Desktop Environment
+# Lightweight Openbox desktop
+
+# Window manager
+openbox
+obconf
+obmenu
+openbox-lxde-session
+
+# Panel
+tint2
+plank
+
+# App launcher
+rofi
+dmenu
+
+# File manager
+pcmanfm
+gvfs
+gvfs-backends
+thunar
+thunar-archive-plugin
+thunar-volman
+
+# Terminal
+lxterminal
+terminator
+alacritty
+
+# Display manager
+lightdm
+lightdm-gtk-greeter
+lightdm-gtk-greeter-settings
+
+# Notification
+dunst
+libnotify-bin
+
+# Compositor
+picom
+
+# Screensaver
+xscreensaver
+
+# Screenshot
+scrot
+flameshot
+
+# Clipboard
+clipmenu
+clipnotify
+
+# Wallpaper
+nitrogen
+
+# Theming
+lxappearance
+gtk-theme-murrine
+murrine-themes
+arc-theme
+papirus-icon-theme
+fonts-noto
+fonts-noto-color-emoji
+fonts-firacode
+fonts-dejavu
+fonts-liberation
+fonts-freefont-ttf

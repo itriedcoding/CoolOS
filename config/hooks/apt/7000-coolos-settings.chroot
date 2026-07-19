@@ -1,0 +1,21 @@
+#!/bin/sh
+set -e
+
+# CoolOS APT Configuration
+echo "Configuring APT..."
+
+# Enable universe repository
+add-apt-repository -y universe
+add-apt-repository -y multiverse
+
+# Update package lists
+apt-get update
+
+# Upgrade installed packages
+apt-get upgrade -y
+
+# Clean up
+apt-get clean
+rm -rf /var/lib/apt/lists/*
+
+echo "APT configuration complete."

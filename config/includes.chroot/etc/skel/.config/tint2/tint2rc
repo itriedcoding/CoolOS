@@ -1,0 +1,115 @@
+begin
+  background_color = #282828
+  border_color = #3c3c3c
+  border_width = 2
+  default_color = #ebdbb2
+  default_font = Noto Sans 10
+  font_color = #ebdbb2
+  font_shadow = 0
+  font_shadow_xshadow = 1
+  font_shadow_ysadow = 1
+  roundness = 6
+  separator_color = #504945
+  separator_size = 1
+
+  tasks
+  {
+    active_bitmap = "iconified.png"
+    active_font = bold
+    active_font_color = #ebdbb2
+    active_text = #ebdbb2
+    iconified_bitmap = "iconified.png"
+    iconified_font = normal
+    iconified_font_color = #928374
+    iconified_text = #928374
+    max_iconified_size = 18
+    max_size = 128
+    min_size = 48
+    normal_bitmap = "normal.png"
+    normal_font = normal
+    normal_font_color = #ebdbb2
+    normal_text = #ebdbb2
+    padding = 4
+    rounded = 2
+    tooltip = %a
+    urgent_bitmap = "urgent.png"
+    urgent_font = bold
+    urgent_font_color = #fb4934
+    urgent_text = #fb4934
+  }
+
+  main
+  {
+    all_monitors = 1
+    background_color = #282828
+    border_color = #3c3c3c
+    border_width = 2
+    dpi = 96
+    font_shadow = 0
+    line = 3
+    margin = 4
+    monitor = primary
+    padding = 4
+    roundness = 2
+    size = 30
+    spacing = 0
+
+    launcher
+    {
+      background = #282828
+      border = #3c3c3c
+      border_styling = flat
+      border_width = 0
+      icon = /usr/share/icons/Papirus-Dark/24x24/apps/start-here.svg
+      icon_size = 20
+      padding = 4
+      rounded = 2
+    }
+
+    taskbar
+    {
+      active = #3c3c3c
+      active_text = #ebdbb2
+      background = #282828
+      border = #3c3c3c
+      border_styling = flat
+      border_width = 0
+      padding = 4
+      rounded = 2
+    }
+
+    systemtray
+    {
+      background = #282828
+      border = #3c3c3c
+      border_styling = flat
+      border_width = 0
+      icon_size = 18
+      padding = 4
+      rounded = 2
+    }
+
+    clock
+    {
+      background = #282828
+      border = #3c3c3c
+      border_styling = flat
+      border_width = 0
+      font = Noto Sans Bold 10
+      font_color = #ebdbb2
+      padding = 4
+      rounded = 2
+      time = %H:%M
+      tooltip = %A %d %B %Y
+    }
+  }
+
+  tooltip
+  {
+    background_color = #282828
+    border_color = #3c3c3c
+    border_width = 1
+    font_color = #ebdbb2
+    padding = 4
+  }
+end

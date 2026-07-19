@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=CoolOS System Monitor
+Comment=Monitor system resources
+Exec=gnome-system-monitor
+Icon=utilities-system-monitor
+Terminal=false
+Categories=System;Monitor;
+Keywords=system;monitor;resources;process;
+StartupNotify=true

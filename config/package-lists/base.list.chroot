@@ -1,0 +1,56 @@
+# CoolOS Base System Packages
+# Minimal core system
+
+# Core utilities
+apt-utils
+bash-completion
+ca-certificates
+curl
+wget
+vim-tiny
+nano
+sudo
+locales
+dialog
+dmidecode
+htop
+tmux
+unzip
+zip
+p7zip-full
+rsync
+tree
+lsof
+strace
+
+# File systems
+e2fsprogs
+dosfstools
+ntfs-3g
+exfat-fuse
+exfat-utils
+
+# Hardware detection
+lshw
+lspci
+usbutils
+linux-perf
+
+# Boot loader
+grub-efi-amd64-bin
+grub-pc-bin
+grub2-common
+grub-common
+syslinux
+syslinux-common
+isolinux
+
+# Live system
+live-boot
+live-config
+live-config-systemd
+
+# ISO tools
+xorriso
+mtools
+genisoimage

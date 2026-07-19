@@ -1,0 +1,36 @@
+#!/bin/sh
+set -e
+
+# CoolOS Splash Screen Configuration
+echo "Configuring CoolOS splash screen..."
+
+# Create splash theme directory
+mkdir -p /boot/grub/splash
+
+# Create GRUB background
+# Create a simple CoolOS themed GRUB config
+cat > /etc/default/grub.d/99-coolos.cfg << 'EOF'
+# CoolOS GRUB Configuration
+
+# Set timeout
+GRUB_TIMEOUT=10
+GRUB_TIMEOUT_STYLE=menu
+
+# Set default entry
+GRUB_DEFAULT=0
+
+# Set menu colors
+GRUB_COLOR_NORMAL="light-gray/black"
+GRUB_COLOR_HIGHLIGHT="white/blue"
+
+# Enable splash
+GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"
+GRUB_CMDLINE_LINUX=""
+
+# Disable os-prober
+GRUB_DISABLE_OS_PROBER=true
+EOF
+
+update-grub
+
+echo "Splash screen configuration complete."
